@@ -1,0 +1,1757 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>LabourLink — Enterprise Admin Command Center</title>
+  <meta name="description" content="Super Admin command desk for LabourLink: manage customers, workers, B2B enterprises, live escrow, bookings, and disputes.">
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg-base:        #0a0e17;
+      --bg-sidebar:     #0f172a;
+      --bg-surface:     #111827;
+      --bg-card:        #182234;
+      --bg-card-hover:  #1e2b42;
+      --bg-subtle:      #1f293d;
+
+      --border-subtle:  rgba(255, 255, 255, 0.07);
+      --border-focus:   #3b82f6;
+
+      --primary:        #3b82f6;
+      --primary-hover:  #2563eb;
+      --accent-purple:  #8b5cf6;
+      --accent-cyan:    #06b6d4;
+      --success:        #10b981;
+      --warning:        #f59e0b;
+      --danger:         #ef4444;
+
+      --text-main:      #f8fafc;
+      --text-muted:     #94a3b8;
+      --text-sub:       #64748b;
+
+      --font-heading:   'Outfit', sans-serif;
+      --font-body:      'Plus Jakarta Sans', sans-serif;
+      --font-mono:      'JetBrains Mono', monospace;
+
+      --radius-sm:      6px;
+      --radius-md:      10px;
+      --radius-lg:      14px;
+      --radius-xl:      18px;
+
+      --shadow-card:    0 4px 20px rgba(0, 0, 0, 0.35);
+      --shadow-hover:   0 8px 30px rgba(0, 0, 0, 0.5);
+    }
+
+    body {
+      font-family: var(--font-body);
+      background: var(--bg-base);
+      color: var(--text-main);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* ══════════════════════════════════════════════
+       LOGIN GATE
+       ══════════════════════════════════════════════ */
+    #loginGate {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      padding: 2rem;
+      background: radial-gradient(circle at 50% 20%, #1e1b4b 0%, #0a0e17 70%);
+    }
+    .login-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-xl);
+      padding: 2.75rem 2.5rem;
+      width: 100%;
+      max-width: 440px;
+      box-shadow: 0 25px 60px rgba(0, 0, 0, 0.7);
+    }
+    .login-brand {
+      text-align: center;
+      margin-bottom: 2rem;
+    }
+    .login-icon-box {
+      width: 58px;
+      height: 58px;
+      margin: 0 auto 1rem;
+      background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+      border-radius: 16px;
+      display: grid;
+      place-items: center;
+      color: white;
+      box-shadow: 0 10px 25px rgba(59, 130, 246, 0.35);
+    }
+    .login-title {
+      font-family: var(--font-heading);
+      font-size: 1.5rem;
+      font-weight: 800;
+      letter-spacing: -0.02em;
+    }
+    .login-subtitle {
+      color: var(--text-muted);
+      font-size: 0.85rem;
+      margin-top: 0.35rem;
+    }
+    .login-credential-box {
+      background: rgba(59, 130, 246, 0.08);
+      border: 1px solid rgba(59, 130, 246, 0.25);
+      border-radius: var(--radius-md);
+      padding: 0.9rem 1rem;
+      margin-bottom: 1.5rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.75rem;
+    }
+    .credential-text {
+      font-size: 0.82rem;
+      color: var(--text-muted);
+    }
+    .credential-text strong {
+      color: #93c5fd;
+      font-family: var(--font-mono);
+    }
+    .btn-quick-fill {
+      background: rgba(59, 130, 246, 0.2);
+      border: 1px solid rgba(59, 130, 246, 0.4);
+      color: #bfdbfe;
+      border-radius: var(--radius-sm);
+      padding: 0.35rem 0.65rem;
+      font-size: 0.75rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .btn-quick-fill:hover {
+      background: #3b82f6;
+      color: white;
+    }
+    .form-group {
+      margin-bottom: 1.1rem;
+    }
+    .form-label {
+      display: block;
+      font-size: 0.78rem;
+      font-weight: 600;
+      color: var(--text-muted);
+      margin-bottom: 0.4rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+    .form-input {
+      width: 100%;
+      padding: 0.75rem 1rem;
+      background: var(--bg-surface);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-md);
+      color: var(--text-main);
+      font-family: var(--font-body);
+      font-size: 0.95rem;
+      transition: border-color 0.2s, box-shadow 0.2s;
+      outline: none;
+    }
+    .form-input:focus {
+      border-color: var(--primary);
+      box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.25);
+    }
+    .btn-login-submit {
+      width: 100%;
+      padding: 0.85rem;
+      background: linear-gradient(135deg, #3b82f6, #2563eb);
+      border: none;
+      border-radius: var(--radius-md);
+      color: white;
+      font-family: var(--font-heading);
+      font-size: 1rem;
+      font-weight: 700;
+      cursor: pointer;
+      margin-top: 0.5rem;
+      box-shadow: 0 8px 25px rgba(37, 99, 235, 0.35);
+      transition: all 0.2s;
+    }
+    .btn-login-submit:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 12px 30px rgba(37, 99, 235, 0.45);
+    }
+    .login-error {
+      background: rgba(239, 68, 68, 0.15);
+      border: 1px solid rgba(239, 68, 68, 0.35);
+      border-radius: var(--radius-md);
+      padding: 0.7rem 1rem;
+      color: #fca5a5;
+      font-size: 0.85rem;
+      margin-bottom: 1.2rem;
+      display: none;
+    }
+
+    /* ══════════════════════════════════════════════
+       ADMIN SHELL LAYOUT
+       ══════════════════════════════════════════════ */
+    #adminShell {
+      display: none;
+      min-height: 100vh;
+      flex-direction: row;
+    }
+
+    /* ── Sidebar ── */
+    .admin-sidebar {
+      width: 260px;
+      flex-shrink: 0;
+      background: var(--bg-sidebar);
+      border-right: 1px solid var(--border-subtle);
+      display: flex;
+      flex-direction: column;
+      position: sticky;
+      top: 0;
+      height: 100vh;
+      overflow-y: auto;
+    }
+    .sidebar-header {
+      padding: 1.25rem 1.5rem;
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      border-bottom: 1px solid var(--border-subtle);
+    }
+    .sidebar-brand-icon {
+      width: 36px;
+      height: 36px;
+      border-radius: 10px;
+      background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+      display: grid;
+      place-items: center;
+      color: white;
+    }
+    .sidebar-brand-text {
+      font-family: var(--font-heading);
+      font-size: 1.25rem;
+      font-weight: 800;
+      color: #fff;
+    }
+    .sidebar-brand-text span {
+      color: var(--primary);
+    }
+    .sidebar-badge {
+      font-size: 0.65rem;
+      font-weight: 700;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      background: rgba(59, 130, 246, 0.15);
+      color: #93c5fd;
+      padding: 0.15rem 0.5rem;
+      border-radius: 12px;
+      border: 1px solid rgba(59, 130, 246, 0.3);
+      margin-left: auto;
+    }
+
+    .sidebar-nav {
+      padding: 1rem 0.75rem;
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 0.25rem;
+    }
+    .nav-section-title {
+      font-size: 0.68rem;
+      font-weight: 700;
+      color: var(--text-sub);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      padding: 0.75rem 0.75rem 0.35rem;
+      margin-top: 0.5rem;
+    }
+    .nav-item {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      padding: 0.65rem 0.85rem;
+      border-radius: var(--radius-md);
+      color: var(--text-muted);
+      background: transparent;
+      border: none;
+      font-family: inherit;
+      font-size: 0.88rem;
+      font-weight: 500;
+      cursor: pointer;
+      text-align: left;
+      width: 100%;
+      transition: all 0.15s ease;
+    }
+    .nav-item svg {
+      width: 18px;
+      height: 18px;
+      flex-shrink: 0;
+      color: var(--text-sub);
+      transition: color 0.15s;
+    }
+    .nav-item:hover {
+      background: rgba(255, 255, 255, 0.04);
+      color: var(--text-main);
+    }
+    .nav-item:hover svg {
+      color: var(--primary);
+    }
+    .nav-item.active {
+      background: rgba(59, 130, 246, 0.15);
+      color: #60a5fa;
+      font-weight: 600;
+    }
+    .nav-item.active svg {
+      color: #60a5fa;
+    }
+    .nav-count-badge {
+      margin-left: auto;
+      font-size: 0.72rem;
+      font-weight: 700;
+      padding: 0.15rem 0.5rem;
+      border-radius: 12px;
+      background: var(--bg-subtle);
+      color: var(--text-muted);
+    }
+    .nav-count-badge.alert {
+      background: rgba(239, 68, 68, 0.2);
+      color: #f87171;
+    }
+
+    .sidebar-footer {
+      padding: 1rem 1.25rem;
+      border-top: 1px solid var(--border-subtle);
+      background: rgba(0, 0, 0, 0.15);
+    }
+    .admin-profile-box {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+    .admin-avatar {
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, #8b5cf6, #3b82f6);
+      color: white;
+      font-weight: 700;
+      display: grid;
+      place-items: center;
+      font-size: 0.9rem;
+    }
+    .admin-info {
+      flex: 1;
+      overflow: hidden;
+    }
+    .admin-name {
+      font-size: 0.85rem;
+      font-weight: 700;
+      color: #fff;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .admin-role {
+      font-size: 0.72rem;
+      color: var(--text-muted);
+    }
+
+    /* ── Main Work Area ── */
+    .admin-main-wrap {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      min-width: 0;
+      height: 100vh;
+      overflow-y: auto;
+    }
+
+    /* ── Top Header Bar ── */
+    .admin-topbar {
+      height: 64px;
+      background: var(--bg-surface);
+      border-bottom: 1px solid var(--border-subtle);
+      padding: 0 2rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      position: sticky;
+      top: 0;
+      z-index: 50;
+      backdrop-filter: blur(10px);
+    }
+    .topbar-left {
+      display: flex;
+      align-items: center;
+      gap: 1.25rem;
+    }
+    .page-title {
+      font-family: var(--font-heading);
+      font-size: 1.25rem;
+      font-weight: 700;
+      color: #fff;
+    }
+    .system-status-chip {
+      display: flex;
+      align-items: center;
+      gap: 0.45rem;
+      background: rgba(16, 185, 129, 0.1);
+      border: 1px solid rgba(16, 185, 129, 0.25);
+      color: #34d399;
+      font-size: 0.75rem;
+      font-weight: 600;
+      padding: 0.25rem 0.65rem;
+      border-radius: 20px;
+    }
+    .status-pulse {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: #10b981;
+      box-shadow: 0 0 6px #10b981;
+    }
+
+    .topbar-right {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+    .portal-dropdown-btn {
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+      background: var(--bg-card);
+      border: 1px solid var(--border-subtle);
+      color: var(--text-muted);
+      border-radius: var(--radius-md);
+      padding: 0.45rem 0.85rem;
+      font-size: 0.82rem;
+      font-family: inherit;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .portal-dropdown-btn:hover {
+      border-color: var(--primary);
+      color: #fff;
+    }
+    .btn-topbar-action {
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+      background: transparent;
+      border: 1px solid var(--border-subtle);
+      color: var(--text-muted);
+      border-radius: var(--radius-md);
+      padding: 0.45rem 0.85rem;
+      font-size: 0.82rem;
+      font-family: inherit;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .btn-topbar-action:hover {
+      border-color: var(--danger);
+      color: var(--danger);
+    }
+
+    /* ── Content Container ── */
+    .admin-content {
+      padding: 2rem 2.5rem;
+      flex: 1;
+      max-width: 1600px;
+      width: 100%;
+      margin: 0 auto;
+    }
+
+    /* ── KPI Grid ── */
+    .kpi-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 1.25rem;
+      margin-bottom: 2rem;
+    }
+    .kpi-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-lg);
+      padding: 1.35rem 1.5rem;
+      position: relative;
+      overflow: hidden;
+      box-shadow: var(--shadow-card);
+      transition: transform 0.2s, border-color 0.2s;
+    }
+    .kpi-card:hover {
+      transform: translateY(-2px);
+      border-color: rgba(59, 130, 246, 0.4);
+    }
+    .kpi-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 0.75rem;
+    }
+    .kpi-label {
+      font-size: 0.8rem;
+      font-weight: 600;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+    .kpi-icon-wrap {
+      width: 36px;
+      height: 36px;
+      border-radius: 10px;
+      display: grid;
+      place-items: center;
+    }
+    .kpi-blue   { background: rgba(59, 130, 246, 0.12); color: #60a5fa; }
+    .kpi-green  { background: rgba(16, 185, 129, 0.12); color: #34d399; }
+    .kpi-amber  { background: rgba(245, 158, 11, 0.12); color: #fbbf24; }
+    .kpi-purple { background: rgba(139, 92, 246, 0.12); color: #c084fc; }
+
+    .kpi-value {
+      font-family: var(--font-heading);
+      font-size: 2rem;
+      font-weight: 800;
+      color: #fff;
+      line-height: 1.1;
+    }
+    .kpi-footer {
+      margin-top: 0.5rem;
+      font-size: 0.78rem;
+      color: var(--text-muted);
+      display: flex;
+      align-items: center;
+      gap: 0.35rem;
+    }
+
+    /* ── Sections & Data Containers ── */
+    .admin-panel-section {
+      display: none;
+    }
+    .admin-panel-section.active {
+      display: block;
+      animation: fadeIn 0.2s ease-in-out;
+    }
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(4px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .section-toolbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 1rem;
+      margin-bottom: 1.25rem;
+      flex-wrap: wrap;
+    }
+    .section-title-wrap h2 {
+      font-family: var(--font-heading);
+      font-size: 1.35rem;
+      font-weight: 800;
+      color: #fff;
+    }
+    .section-title-wrap p {
+      font-size: 0.85rem;
+      color: var(--text-muted);
+      margin-top: 0.2rem;
+    }
+
+    .toolbar-actions {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+    .search-input-box {
+      position: relative;
+      width: 280px;
+    }
+    .search-input-box svg {
+      position: absolute;
+      left: 0.85rem;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 16px;
+      height: 16px;
+      color: var(--text-sub);
+    }
+    .search-input-box input {
+      width: 100%;
+      padding: 0.55rem 0.85rem 0.55rem 2.4rem;
+      background: var(--bg-card);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-md);
+      color: var(--text-main);
+      font-size: 0.85rem;
+      outline: none;
+      transition: all 0.2s;
+    }
+    .search-input-box input:focus {
+      border-color: var(--primary);
+      box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2);
+    }
+    .filter-select {
+      padding: 0.55rem 0.85rem;
+      background: var(--bg-card);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-md);
+      color: var(--text-main);
+      font-size: 0.85rem;
+      outline: none;
+      cursor: pointer;
+    }
+
+    /* ── Professional Data Tables ── */
+    .table-container {
+      background: var(--bg-card);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-lg);
+      overflow: hidden;
+      box-shadow: var(--shadow-card);
+    }
+    .data-table {
+      width: 100%;
+      border-collapse: collapse;
+      text-align: left;
+    }
+    .data-table th {
+      background: var(--bg-subtle);
+      color: var(--text-muted);
+      font-size: 0.72rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      padding: 0.85rem 1.25rem;
+      border-bottom: 1px solid var(--border-subtle);
+    }
+    .data-table td {
+      padding: 0.95rem 1.25rem;
+      border-bottom: 1px solid var(--border-subtle);
+      font-size: 0.88rem;
+      color: var(--text-main);
+      vertical-align: middle;
+    }
+    .data-table tr:last-child td {
+      border-bottom: none;
+    }
+    .data-table tr:hover td {
+      background: var(--bg-card-hover);
+    }
+
+    /* User Row Presentation */
+    .user-cell {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+    .user-avatar-circle {
+      width: 34px;
+      height: 34px;
+      border-radius: 50%;
+      display: grid;
+      place-items: center;
+      font-weight: 700;
+      font-size: 0.85rem;
+      color: white;
+      flex-shrink: 0;
+    }
+    .user-info-text .name {
+      font-weight: 600;
+      color: #fff;
+    }
+    .user-info-text .sub {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+    }
+
+    /* Status Badges */
+    .badge-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.35rem;
+      padding: 0.25rem 0.65rem;
+      border-radius: 20px;
+      font-size: 0.75rem;
+      font-weight: 600;
+      letter-spacing: 0.02em;
+    }
+    .badge-active   { background: rgba(16, 185, 129, 0.12); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.25); }
+    .badge-pending  { background: rgba(245, 158, 11, 0.12); color: #fbbf24; border: 1px solid rgba(245, 158, 11, 0.25); }
+    .badge-blocked  { background: rgba(239, 68, 68, 0.12); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.25); }
+    .badge-verified { background: rgba(59, 130, 246, 0.12); color: #60a5fa; border: 1px solid rgba(59, 130, 246, 0.25); }
+
+    /* Action Buttons */
+    .table-actions {
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+    }
+    .btn-action {
+      padding: 0.35rem 0.75rem;
+      border-radius: var(--radius-sm);
+      border: 1px solid var(--border-subtle);
+      background: var(--bg-subtle);
+      color: var(--text-muted);
+      font-size: 0.78rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .btn-action:hover {
+      border-color: var(--primary);
+      color: #60a5fa;
+      background: rgba(59, 130, 246, 0.1);
+    }
+    .btn-action.btn-approve {
+      border-color: rgba(16, 185, 129, 0.4);
+      color: #34d399;
+      background: rgba(16, 185, 129, 0.1);
+    }
+    .btn-action.btn-approve:hover {
+      background: #10b981;
+      color: white;
+    }
+    .btn-action.btn-danger {
+      border-color: rgba(239, 68, 68, 0.4);
+      color: #f87171;
+    }
+    .btn-action.btn-danger:hover {
+      background: #ef4444;
+      color: white;
+    }
+
+    /* ── Split Grid for Dashboard ── */
+    .dashboard-split-grid {
+      display: grid;
+      grid-template-columns: 2fr 1fr;
+      gap: 1.5rem;
+    }
+
+    /* ── Detail Modal ── */
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.75);
+      backdrop-filter: blur(4px);
+      z-index: 999;
+      display: none;
+      place-items: center;
+      padding: 1.5rem;
+    }
+    .modal-overlay.open {
+      display: grid;
+    }
+    .modal-box {
+      background: var(--bg-card);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-xl);
+      padding: 2rem 2.25rem;
+      width: 100%;
+      max-width: 620px;
+      box-shadow: 0 30px 80px rgba(0, 0, 0, 0.8);
+      max-height: 90vh;
+      overflow-y: auto;
+    }
+    .modal-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding-bottom: 1.25rem;
+      border-bottom: 1px solid var(--border-subtle);
+      margin-bottom: 1.5rem;
+    }
+    .modal-title {
+      font-family: var(--font-heading);
+      font-size: 1.25rem;
+      font-weight: 700;
+    }
+    .btn-close-modal {
+      background: transparent;
+      border: none;
+      color: var(--text-muted);
+      cursor: pointer;
+      font-size: 1.25rem;
+      line-height: 1;
+      padding: 0.25rem;
+    }
+    .btn-close-modal:hover {
+      color: #fff;
+    }
+    .detail-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1rem;
+    }
+    .detail-card {
+      background: var(--bg-subtle);
+      padding: 0.85rem 1rem;
+      border-radius: var(--radius-md);
+      border: 1px solid var(--border-subtle);
+    }
+    .detail-label {
+      font-size: 0.72rem;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      font-weight: 600;
+    }
+    .detail-val {
+      font-size: 0.95rem;
+      font-weight: 700;
+      color: #fff;
+      margin-top: 0.25rem;
+    }
+
+    /* Responsive */
+    @media (max-width: 1100px) {
+      .kpi-grid { grid-template-columns: repeat(2, 1fr); }
+      .dashboard-split-grid { grid-template-columns: 1fr; }
+    }
+    @media (max-width: 768px) {
+      .admin-sidebar { width: 70px; }
+      .sidebar-brand-text, .sidebar-badge, .nav-item span, .nav-count-badge, .nav-section-title, .admin-info { display: none; }
+      .sidebar-header { justify-content: center; padding: 1rem; }
+      .admin-content { padding: 1.25rem; }
+      .kpi-grid { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- ══════════════════════════════════════════════
+     ADMIN LOGIN GATE
+     ══════════════════════════════════════════════ -->
+<div id="loginGate">
+  <div class="login-card">
+    <div class="login-brand">
+      <div class="login-icon-box"><i data-lucide="shield-check" style="width: 28px; height: 28px;"></i></div>
+      <h1 class="login-title">Admin Command Center</h1>
+      <p class="login-subtitle">LabourLink Two-Sided Platform Management</p>
+    </div>
+
+    <!-- 1-Click Fill Credentials Helper -->
+    <div class="login-credential-box">
+      <div class="credential-text">
+        ID: <strong>admin</strong> &nbsp;|&nbsp; Pass: <strong>LabourLink@Admin2025</strong>
+      </div>
+      <button class="btn-quick-fill" onclick="fillAdminCredentials()">1-Click Fill</button>
+    </div>
+
+    <div class="login-error" id="loginError"></div>
+
+    <form onsubmit="handleAdminLogin(event)">
+      <div class="form-group">
+        <label class="form-label">Admin Identifier</label>
+        <input type="text" class="form-input" id="adminId" placeholder="admin or admin@labourlink.in" required>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Security Password</label>
+        <input type="password" class="form-input" id="adminPass" placeholder="Enter secure password" required>
+      </div>
+      <button type="submit" class="btn-login-submit">Authenticate as Admin</button>
+    </form>
+
+    <div style="text-align: center; margin-top: 1.5rem; font-size: 0.85rem; color: var(--text-muted);">
+      Looking for user panels? <a href="auth.html" style="color: var(--primary); text-decoration: none; font-weight: 600;">Go to Portal Gateway →</a>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════
+     ADMIN WORKSPACE SHELL
+     ══════════════════════════════════════════════ -->
+<div id="adminShell">
+
+  <!-- Left Sidebar Navigation -->
+  <aside class="admin-sidebar">
+    <div class="sidebar-header">
+      <div class="sidebar-brand-icon"><i data-lucide="shield" style="width: 20px; height: 20px;"></i></div>
+      <div class="sidebar-brand-text">Labour<span>Link</span></div>
+      <span class="sidebar-badge">HQ Admin</span>
+    </div>
+
+    <nav class="sidebar-nav">
+      <div class="nav-section-title">Overview</div>
+      <button class="nav-item active" onclick="switchAdminTab('dashboard')">
+        <i data-lucide="layout-dashboard"></i>
+        <span>Executive Dashboard</span>
+      </button>
+
+      <div class="nav-section-title">Marketplace Users</div>
+      <button class="nav-item" onclick="switchAdminTab('customers')">
+        <i data-lucide="users"></i>
+        <span>Customers (Demand)</span>
+        <span class="nav-count-badge" id="badgeCustCount">0</span>
+      </button>
+      <button class="nav-item" onclick="switchAdminTab('labour')">
+        <i data-lucide="hammer"></i>
+        <span>Workers (Labour Supply)</span>
+        <span class="nav-count-badge" id="badgeLabourCount">0</span>
+      </button>
+      <button class="nav-item" onclick="switchAdminTab('b2b')">
+        <i data-lucide="building-2"></i>
+        <span>B2B Enterprises</span>
+        <span class="nav-count-badge" id="badgeB2bCount">0</span>
+      </button>
+
+      <div class="nav-section-title">Operations &amp; Escrow</div>
+      <button class="nav-item" onclick="switchAdminTab('bookings')">
+        <i data-lucide="clipboard-list"></i>
+        <span>Bookings &amp; Jobs</span>
+      </button>
+      <button class="nav-item" onclick="switchAdminTab('disputes')">
+        <i data-lucide="alert-triangle"></i>
+        <span>Dispute Workbench</span>
+        <span class="nav-count-badge alert" id="badgeDisputesCount">0</span>
+      </button>
+      <button class="nav-item" onclick="switchAdminTab('escrow')">
+        <i data-lucide="wallet"></i>
+        <span>Escrow &amp; Payouts</span>
+      </button>
+      <button class="nav-item" onclick="switchAdminTab('settings')">
+        <i data-lucide="sliders"></i>
+        <span>Platform Rules</span>
+      </button>
+    </nav>
+
+    <!-- Sidebar Footer with Admin Profile -->
+    <div class="sidebar-footer">
+      <div class="admin-profile-box">
+        <div class="admin-avatar">A</div>
+        <div class="admin-info">
+          <div class="admin-name">Super Administrator</div>
+          <div class="admin-role">Platform Operations</div>
+        </div>
+      </div>
+    </div>
+  </aside>
+
+  <!-- Right Content Area -->
+  <div class="admin-main-wrap">
+
+    <!-- Top Sticky Bar -->
+    <header class="admin-topbar">
+      <div class="topbar-left">
+        <h1 class="page-title" id="adminTopTitle">Executive Dashboard</h1>
+        <div class="system-status-chip">
+          <span class="status-pulse"></span>
+          <span>Escrow Vault Secured</span>
+        </div>
+      </div>
+
+      <div class="topbar-right">
+        <!-- Direct Jump to Dedicated Portals -->
+        <button class="portal-dropdown-btn" onclick="window.open('customer.html', '_blank')">
+          <i data-lucide="external-link" style="width: 14px; height: 14px;"></i>
+          <span>Customer Portal</span>
+        </button>
+        <button class="portal-dropdown-btn" onclick="window.open('labour.html', '_blank')">
+          <i data-lucide="external-link" style="width: 14px; height: 14px;"></i>
+          <span>Worker Hub</span>
+        </button>
+        <button class="portal-dropdown-btn" onclick="window.open('b2b.html', '_blank')">
+          <i data-lucide="external-link" style="width: 14px; height: 14px;"></i>
+          <span>B2B Portal</span>
+        </button>
+
+        <!-- Logout Action -->
+        <button class="btn-topbar-action" onclick="adminLogout()" title="Sign out of Admin panel">
+          <i data-lucide="log-out" style="width: 14px; height: 14px;"></i>
+          <span>Sign Out</span>
+        </button>
+      </div>
+    </header>
+
+    <!-- Main Content Body -->
+    <main class="admin-content">
+
+      <!-- ══════════════════════════════════════
+           TAB 1: EXECUTIVE DASHBOARD
+           ══════════════════════════════════════ -->
+      <div class="admin-panel-section active" id="sec-dashboard">
+        <!-- 4 Top Aligned KPI Cards -->
+        <div class="kpi-grid">
+          <div class="kpi-card">
+            <div class="kpi-header">
+              <span class="kpi-label">Escrow Pool Vault</span>
+              <div class="kpi-icon-wrap kpi-green"><i data-lucide="lock" style="width:18px;height:18px;"></i></div>
+            </div>
+            <div class="kpi-value" id="kpiEscrowTotal">₹14,500</div>
+            <div class="kpi-footer">
+              <span style="color: #34d399; font-weight: 700;">100% Locked</span>
+              <span>• Zero payment risk</span>
+            </div>
+          </div>
+
+          <div class="kpi-card">
+            <div class="kpi-header">
+              <span class="kpi-label">Active Labour Supply</span>
+              <div class="kpi-icon-wrap kpi-blue"><i data-lucide="hard-hat" style="width:18px;height:18px;"></i></div>
+            </div>
+            <div class="kpi-value" id="kpiTotalWorkers">0</div>
+            <div class="kpi-footer">
+              <span id="kpiPendingWorkers" style="color: #fbbf24; font-weight: 700;">0 Pending Approval</span>
+            </div>
+          </div>
+
+          <div class="kpi-card">
+            <div class="kpi-header">
+              <span class="kpi-label">Registered Customers</span>
+              <div class="kpi-icon-wrap kpi-purple"><i data-lucide="users" style="width:18px;height:18px;"></i></div>
+            </div>
+            <div class="kpi-value" id="kpiTotalCustomers">0</div>
+            <div class="kpi-footer">
+              <span style="color: #c084fc; font-weight: 700;">Verified Demand</span>
+              <span>across Mumbai &amp; Pune</span>
+            </div>
+          </div>
+
+          <div class="kpi-card">
+            <div class="kpi-header">
+              <span class="kpi-label">B2B Enterprises</span>
+              <div class="kpi-icon-wrap kpi-amber"><i data-lucide="building-2" style="width:18px;height:18px;"></i></div>
+            </div>
+            <div class="kpi-value" id="kpiTotalB2b">0</div>
+            <div class="kpi-footer">
+              <span style="color: #fbbf24; font-weight: 700;">Corporate Accounts</span>
+              <span>• High LTV</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Two Column Layout: Recent Users + Quick Operations -->
+        <div class="dashboard-split-grid">
+          <!-- Left: Recent Registrations Table -->
+          <div>
+            <div class="section-toolbar">
+              <div class="section-title-wrap">
+                <h2>Recent Platform Registrations</h2>
+                <p>Newest customers, workers, and enterprises registered on LabourLink</p>
+              </div>
+            </div>
+            <div class="table-container">
+              <table class="data-table">
+                <thead>
+                  <tr>
+                    <th>User / Organization</th>
+                    <th>Portal Role</th>
+                    <th>Contact Phone</th>
+                    <th>City</th>
+                    <th>Status</th>
+                  </tr>
+                </thead>
+                <tbody id="dashboardRecentTable"></tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- Right: System Operations & Health Card -->
+          <div style="display: flex; flex-direction: column; gap: 1.25rem;">
+            <div class="kpi-card" style="padding: 1.5rem;">
+              <h3 style="font-family: var(--font-heading); font-size: 1.1rem; font-weight: 700; margin-bottom: 1rem; color: #fff;">
+                Quick Verification Queue
+              </h3>
+              <div id="quickVerifyQueue"></div>
+            </div>
+
+            <div class="kpi-card" style="padding: 1.5rem;">
+              <h3 style="font-family: var(--font-heading); font-size: 1.1rem; font-weight: 700; margin-bottom: 0.75rem; color: #fff;">
+                Escrow Guarantee Notice
+              </h3>
+              <p style="font-size: 0.82rem; color: var(--text-muted); line-height: 1.5;">
+                All customer funds are captured via Escrow before worker dispatch. Commissions are automatically deducted at source (20% Unskilled, 22% Semi-skilled, 25% Skilled) upon OTP completion.
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ══════════════════════════════════════
+           TAB 2: CUSTOMERS MANAGEMENT
+           ══════════════════════════════════════ -->
+      <div class="admin-panel-section" id="sec-customers">
+        <div class="section-toolbar">
+          <div class="section-title-wrap">
+            <h2>Customer Demand Management</h2>
+            <p>Inspect registered customers, bookings history, addresses, and loyalty points</p>
+          </div>
+          <div class="toolbar-actions">
+            <div class="search-input-box">
+              <i data-lucide="search"></i>
+              <input type="text" placeholder="Search by name, phone, city..." oninput="filterTableRows('custTableBody', this.value)">
+            </div>
+          </div>
+        </div>
+
+        <div class="table-container">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Customer Name</th>
+                <th>Phone Number</th>
+                <th>City / Delivery Zone</th>
+                <th>Total Bookings</th>
+                <th>Account Tier</th>
+                <th>Status</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="custTableBody"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- ══════════════════════════════════════
+           TAB 3: WORKERS (LABOUR) MANAGEMENT
+           ══════════════════════════════════════ -->
+      <div class="admin-panel-section" id="sec-labour">
+        <div class="section-toolbar">
+          <div class="section-title-wrap">
+            <h2>Worker (Labour Supply) Management</h2>
+            <p>Approve onboarding, review KYC police certificates, manage trades and active status</p>
+          </div>
+          <div class="toolbar-actions">
+            <select class="filter-select" id="labourTradeFilter" onchange="filterLabourByTrade(this.value)">
+              <option value="all">All Trade Categories</option>
+              <option value="Electrician">Electrician</option>
+              <option value="Plumber">Plumber</option>
+              <option value="Painter">Painter</option>
+              <option value="Carpenter">Carpenter</option>
+              <option value="Loader">Loader</option>
+            </select>
+            <div class="search-input-box">
+              <i data-lucide="search"></i>
+              <input type="text" placeholder="Search workers..." oninput="filterTableRows('labourTableBody', this.value)">
+            </div>
+          </div>
+        </div>
+
+        <div class="table-container">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Worker Name</th>
+                <th>Skill / Trade</th>
+                <th>Phone</th>
+                <th>City</th>
+                <th>Rating</th>
+                <th>KYC Onboarding</th>
+                <th>Account Status</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="labourTableBody"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- ══════════════════════════════════════
+           TAB 4: B2B ENTERPRISES
+           ══════════════════════════════════════ -->
+      <div class="admin-panel-section" id="sec-b2b">
+        <div class="section-toolbar">
+          <div class="section-title-wrap">
+            <h2>B2B Enterprise Clients</h2>
+            <p>Commercial contractors, bulk workforce orders, SLA contracts, and GST billing</p>
+          </div>
+          <div class="toolbar-actions">
+            <div class="search-input-box">
+              <i data-lucide="search"></i>
+              <input type="text" placeholder="Search enterprises..." oninput="filterTableRows('b2bTableBody', this.value)">
+            </div>
+          </div>
+        </div>
+
+        <div class="table-container">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Company Name</th>
+                <th>Authorized Contact</th>
+                <th>Phone</th>
+                <th>GSTIN Number</th>
+                <th>Active Headcount</th>
+                <th>Credit Limit</th>
+                <th>Status</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="b2bTableBody"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- ══════════════════════════════════════
+           TAB 5: BOOKINGS & JOBS
+           ══════════════════════════════════════ -->
+      <div class="admin-panel-section" id="sec-bookings">
+        <div class="section-toolbar">
+          <div class="section-title-wrap">
+            <h2>Marketplace Bookings &amp; Real-Time Jobs</h2>
+            <p>Monitor live dispatch status, OTP job starts, and escrow settlement status</p>
+          </div>
+        </div>
+
+        <div class="table-container">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Booking ID</th>
+                <th>Customer</th>
+                <th>Assigned Worker</th>
+                <th>Trade Service</th>
+                <th>Escrow Amount</th>
+                <th>OTP Verified</th>
+                <th>Current Status</th>
+              </tr>
+            </thead>
+            <tbody id="bookingsTableBody"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- ══════════════════════════════════════
+           TAB 6: DISPUTE WORKBENCH
+           ══════════════════════════════════════ -->
+      <div class="admin-panel-section" id="sec-disputes">
+        <div class="section-toolbar">
+          <div class="section-title-wrap">
+            <h2>SLA Dispute Resolution Workbench</h2>
+            <p>Inspect held escrow amounts and execute fair, immediate settlement decisions</p>
+          </div>
+        </div>
+
+        <div class="table-container">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Ticket ID</th>
+                <th>Booking Reference</th>
+                <th>Raised By</th>
+                <th>Issue Reason</th>
+                <th>Escrow Held</th>
+                <th>Resolution Actions</th>
+              </tr>
+            </thead>
+            <tbody id="disputesTableBody"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- ══════════════════════════════════════
+           TAB 7: ESCROW & FINANCE
+           ══════════════════════════════════════ -->
+      <div class="admin-panel-section" id="sec-escrow">
+        <div class="section-toolbar">
+          <div class="section-title-wrap">
+            <h2>Escrow &amp; Financial Ledger</h2>
+            <p>Monitor platform fees, escrow ledger entries, worker disbursements, and revenue</p>
+          </div>
+        </div>
+
+        <div class="kpi-grid" style="grid-template-columns: repeat(3, 1fr);">
+          <div class="kpi-card">
+            <div class="kpi-header"><span class="kpi-label">Total Escrow Pool</span><div class="kpi-icon-wrap kpi-green"><i data-lucide="shield"></i></div></div>
+            <div class="kpi-value" id="finTotalEscrow">₹14,500</div>
+            <div class="kpi-footer">Safely held for active bookings</div>
+          </div>
+          <div class="kpi-card">
+            <div class="kpi-header"><span class="kpi-label">Platform Commissions Earned</span><div class="kpi-icon-wrap kpi-blue"><i data-lucide="pie-chart"></i></div></div>
+            <div class="kpi-value" id="finCommissions">₹2,900</div>
+            <div class="kpi-footer">Average 20-25% take-rate</div>
+          </div>
+          <div class="kpi-card">
+            <div class="kpi-header"><span class="kpi-label">Disbursed to Workers</span><div class="kpi-icon-wrap kpi-purple"><i data-lucide="check-circle"></i></div></div>
+            <div class="kpi-value" id="finDisbursed">₹11,600</div>
+            <div class="kpi-footer">Instant UPI / Bank settlement</div>
+          </div>
+        </div>
+
+        <div class="table-container" style="margin-top: 1.5rem;">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Ledger ID</th>
+                <th>Booking Ref</th>
+                <th>Total Paid</th>
+                <th>Platform Commission</th>
+                <th>Labour Payout</th>
+                <th>Escrow State</th>
+              </tr>
+            </thead>
+            <tbody id="escrowLedgerBody"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- ══════════════════════════════════════
+           TAB 8: PLATFORM RULES & SETTINGS
+           ══════════════════════════════════════ -->
+      <div class="admin-panel-section" id="sec-settings">
+        <div class="section-toolbar">
+          <div class="section-title-wrap">
+            <h2>Platform Algorithms &amp; Anti-Bias Rules</h2>
+            <p>System configuration parameters in accordance with the 107-page operational blueprint</p>
+          </div>
+        </div>
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem;">
+          <div class="kpi-card" style="padding: 1.75rem;">
+            <h3 style="font-family: var(--font-heading); font-size: 1.15rem; font-weight: 700; color: #fff; margin-bottom: 1rem;">
+              Statutory Commission Slabs
+            </h3>
+            <div style="display: flex; flex-direction: column; gap: 0.75rem;">
+              <div style="display: flex; justify-content: space-between; padding: 0.6rem 0; border-bottom: 1px solid var(--border-subtle);">
+                <span style="color: var(--text-muted);">Unskilled Labour (Helper/Loader)</span>
+                <strong style="color: #34d399;">20% Deducted</strong>
+              </div>
+              <div style="display: flex; justify-content: space-between; padding: 0.6rem 0; border-bottom: 1px solid var(--border-subtle);">
+                <span style="color: var(--text-muted);">Semi-Skilled (Painter/Gardener)</span>
+                <strong style="color: #fbbf24;">22% Deducted</strong>
+              </div>
+              <div style="display: flex; justify-content: space-between; padding: 0.6rem 0; border-bottom: 1px solid var(--border-subtle);">
+                <span style="color: var(--text-muted);">Skilled Pro (Electrician/Plumber)</span>
+                <strong style="color: #60a5fa;">25% Deducted</strong>
+              </div>
+              <div style="display: flex; justify-content: space-between; padding: 0.6rem 0;">
+                <span style="color: var(--text-muted);">Emergency Surge Multiplier</span>
+                <strong style="color: #f87171;">1.5× Active</strong>
+              </div>
+            </div>
+          </div>
+
+          <div class="kpi-card" style="padding: 1.75rem;">
+            <h3 style="font-family: var(--font-heading); font-size: 1.15rem; font-weight: 700; color: #fff; margin-bottom: 1rem;">
+              Fair Turn &amp; Anti-Monopoly Cap
+            </h3>
+            <p style="font-size: 0.85rem; color: var(--text-muted); line-height: 1.6; margin-bottom: 1.25rem;">
+              Prevents job hoarding by workers who have already completed &gt;5 bookings today. A 20% score reduction is automatically applied by the matching algorithm to ensure fair job distribution to newer and hungry workers.
+            </p>
+            <div style="display: flex; align-items: center; gap: 0.5rem; color: #34d399; font-weight: 700; font-size: 0.85rem;">
+              <i data-lucide="check-circle" style="width: 16px; height: 16px;"></i>
+              <span>Anti-Monopoly Rule: ACTIVE ON PLATFORM</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </main>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════
+     USER DETAIL MODAL
+     ══════════════════════════════════════════════ -->
+<div class="modal-overlay" id="detailModal">
+  <div class="modal-box">
+    <div class="modal-header">
+      <h3 class="modal-title" id="modalUserTitle">User Dossier</h3>
+      <button class="btn-close-modal" onclick="closeUserModal()">&times;</button>
+    </div>
+    <div id="modalUserContent"></div>
+  </div>
+</div>
+
+<script src="js/auth.js"></script>
+<script>
+  /* ── 1-Click Demo Fill ── */
+  function fillAdminCredentials() {
+    document.getElementById('adminId').value = 'admin';
+    document.getElementById('adminPass').value = 'LabourLink@Admin2025';
+  }
+
+  /* ── Admin Login Execution ── */
+  function handleAdminLogin(e) {
+    e.preventDefault();
+    const id = document.getElementById('adminId').value.trim();
+    const pass = document.getElementById('adminPass').value;
+    const res = AuthSystem.login('admin', id, pass);
+    if (!res.ok) {
+      const errEl = document.getElementById('loginError');
+      errEl.textContent = res.msg;
+      errEl.style.display = 'block';
+      return;
+    }
+    showAdminWorkspace();
+  }
+
+  function adminLogout() {
+    AuthSystem.logout();
+  }
+
+  function showAdminWorkspace() {
+    document.getElementById('loginGate').style.display = 'none';
+    document.getElementById('adminShell').style.display = 'flex';
+    refreshAdminData();
+  }
+
+  /* ── Tab Navigation ── */
+  function switchAdminTab(tabKey) {
+    document.querySelectorAll('.admin-panel-section').forEach(s => s.classList.remove('active'));
+    document.getElementById('sec-' + tabKey).classList.add('active');
+
+    document.querySelectorAll('.nav-item').forEach(i => i.classList.remove('active'));
+    document.querySelector(`.nav-item[onclick*="${tabKey}"]`)?.classList.add('active');
+
+    const titleMap = {
+      dashboard: 'Executive Dashboard',
+      customers: 'Customer Demand Management',
+      labour:    'Worker Supply Management',
+      b2b:       'B2B Enterprise Accounts',
+      bookings:  'Marketplace Bookings & Live Jobs',
+      disputes:  'SLA Dispute Workbench',
+      escrow:    'Escrow & Financial Ledger',
+      settings:  'Platform Rules & Algorithms'
+    };
+    const titleEl = document.getElementById('adminTopTitle');
+    if (titleEl) titleEl.textContent = titleMap[tabKey] || 'Admin Center';
+    lucide.createIcons();
+  }
+
+  /* ── Refresh All Dashboard Data ── */
+  function refreshAdminData() {
+    const customers = AuthSystem.getUsersByRole('customer');
+    const workers   = AuthSystem.getUsersByRole('labour');
+    const b2bList   = AuthSystem.getUsersByRole('b2b');
+
+    // Update Counts
+    document.getElementById('badgeCustCount').textContent   = customers.length;
+    document.getElementById('badgeLabourCount').textContent = workers.length;
+    document.getElementById('badgeB2bCount').textContent    = b2bList.length;
+
+    document.getElementById('kpiTotalCustomers').textContent = customers.length;
+    document.getElementById('kpiTotalWorkers').textContent   = workers.length;
+    document.getElementById('kpiTotalB2b').textContent       = b2bList.length;
+
+    const pendingCount = workers.filter(w => w.status === 'pending').length;
+    document.getElementById('kpiPendingWorkers').textContent = `${pendingCount} Pending Approval`;
+
+    // Render tables
+    renderDashboardOverview(customers, workers, b2bList);
+    renderCustomersTable(customers);
+    renderLabourTable(workers);
+    renderB2bTable(b2bList);
+    renderBookingsTable();
+    renderDisputesTable();
+    renderEscrowTable();
+
+    lucide.createIcons();
+  }
+
+  /* ── Render Overview ── */
+  function renderDashboardOverview(customers, workers, b2bList) {
+    const allUsers = [...customers, ...workers, ...b2bList]
+      .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
+      .slice(0, 6);
+
+    const tbody = document.getElementById('dashboardRecentTable');
+    if (!tbody) return;
+
+    tbody.innerHTML = allUsers.map(u => `
+      <tr>
+        <td>
+          <div class="user-cell">
+            <div class="user-avatar-circle" style="background: ${getRoleGradient(u.role)}">${u.name.charAt(0)}</div>
+            <div class="user-info-text">
+              <div class="name">${u.name}</div>
+              <div class="sub">${u.email || u.phone}</div>
+            </div>
+          </div>
+        </td>
+        <td><span class="badge-pill ${getRoleBadgeClass(u.role)}">${getRoleLabel(u.role)}</span></td>
+        <td style="font-family: var(--font-mono); font-size: 0.82rem;">${u.phone}</td>
+        <td>${u.city || 'Mumbai'}</td>
+        <td><span class="badge-pill ${u.status === 'active' ? 'badge-active' : 'badge-pending'}">${u.status}</span></td>
+      </tr>
+    `).join('');
+
+    // Quick verification queue
+    const pendingWorkers = workers.filter(w => w.status === 'pending');
+    const queueEl = document.getElementById('quickVerifyQueue');
+    if (queueEl) {
+      if (pendingWorkers.length === 0) {
+        queueEl.innerHTML = '<p style="color: var(--text-muted); font-size: 0.85rem;">No workers waiting for verification. All clear!</p>';
+      } else {
+        queueEl.innerHTML = pendingWorkers.map(w => `
+          <div style="display: flex; align-items: center; justify-content: space-between; padding: 0.6rem 0; border-bottom: 1px solid var(--border-subtle);">
+            <div>
+              <div style="font-weight: 600; font-size: 0.88rem; color: #fff;">${w.name}</div>
+              <div style="font-size: 0.75rem; color: var(--text-muted);">${w.category} • ${w.city}</div>
+            </div>
+            <button class="btn-action btn-approve" onclick="approveWorker('${w.id}')">Approve KYC</button>
+          </div>
+        `).join('');
+      }
+    }
+  }
+
+  /* ── Render Customers Table ── */
+  function renderCustomersTable(customers) {
+    const tbody = document.getElementById('custTableBody');
+    if (!tbody) return;
+
+    tbody.innerHTML = customers.map(c => `
+      <tr>
+        <td>
+          <div class="user-cell">
+            <div class="user-avatar-circle" style="background: #2563eb;">${c.name.charAt(0)}</div>
+            <div class="user-info-text">
+              <div class="name">${c.name}</div>
+              <div class="sub">${c.email || 'Verified Mobile'}</div>
+            </div>
+          </div>
+        </td>
+        <td style="font-family: var(--font-mono); font-size: 0.82rem;">${c.phone}</td>
+        <td>${c.city || 'Mumbai'}</td>
+        <td><strong>${c.totalBookings || 0}</strong> bookings</td>
+        <td><span class="badge-pill badge-verified">${c.tier || 'Bronze'}</span></td>
+        <td><span class="badge-pill ${c.status === 'active' ? 'badge-active' : 'badge-blocked'}">${c.status}</span></td>
+        <td>
+          <div class="table-actions">
+            <button class="btn-action" onclick="viewUserModal('${c.id}')">View</button>
+            <button class="btn-action btn-danger" onclick="deleteUserRecord('${c.id}')">Delete</button>
+          </div>
+        </td>
+      </tr>
+    `).join('');
+  }
+
+  /* ── Render Labour / Workers Table ── */
+  function renderLabourTable(workers) {
+    const tbody = document.getElementById('labourTableBody');
+    if (!tbody) return;
+
+    tbody.innerHTML = workers.map(w => `
+      <tr>
+        <td>
+          <div class="user-cell">
+            <div class="user-avatar-circle" style="background: #059669;">${w.name.charAt(0)}</div>
+            <div class="user-info-text">
+              <div class="name">${w.name}</div>
+              <div class="sub">${w.experience || 1} yrs exp</div>
+            </div>
+          </div>
+        </td>
+        <td><strong style="color: #60a5fa;">${w.category || 'Helper'}</strong></td>
+        <td style="font-family: var(--font-mono); font-size: 0.82rem;">${w.phone}</td>
+        <td>${w.city || 'Mumbai'}</td>
+        <td><span style="color: #fbbf24; font-weight: 700;">★ ${w.rating || '5.0'}</span></td>
+        <td><span class="badge-pill ${w.onboardingStage === 7 ? 'badge-verified' : 'badge-pending'}">Stage ${w.onboardingStage || 1}/7</span></td>
+        <td><span class="badge-pill ${w.status === 'active' ? 'badge-active' : 'badge-pending'}">${w.status}</span></td>
+        <td>
+          <div class="table-actions">
+            <button class="btn-action" onclick="viewUserModal('${w.id}')">View</button>
+            ${w.status === 'pending' ? `<button class="btn-action btn-approve" onclick="approveWorker('${w.id}')">Approve</button>` : ''}
+            <button class="btn-action btn-danger" onclick="deleteUserRecord('${w.id}')">Delete</button>
+          </div>
+        </td>
+      </tr>
+    `).join('');
+  }
+
+  /* ── Render B2B Table ── */
+  function renderB2bTable(b2bList) {
+    const tbody = document.getElementById('b2bTableBody');
+    if (!tbody) return;
+
+    tbody.innerHTML = b2bList.map(b => `
+      <tr>
+        <td>
+          <div class="user-cell">
+            <div class="user-avatar-circle" style="background: #7c3aed;">${b.companyName?.charAt(0) || 'B'}</div>
+            <div class="user-info-text">
+              <div class="name">${b.companyName || b.name}</div>
+              <div class="sub">${b.city || 'Mumbai'}</div>
+            </div>
+          </div>
+        </td>
+        <td>${b.contactPerson || b.name}</td>
+        <td style="font-family: var(--font-mono); font-size: 0.82rem;">${b.phone}</td>
+        <td style="font-family: var(--font-mono); font-size: 0.82rem; color: #a5b4fc;">${b.gst || 'GST Pending'}</td>
+        <td><strong>${b.activeHeadcount || 12}</strong> workers</td>
+        <td>₹${(b.creditLimit || 100000).toLocaleString()}</td>
+        <td><span class="badge-pill badge-active">${b.status}</span></td>
+        <td>
+          <div class="table-actions">
+            <button class="btn-action" onclick="viewUserModal('${b.id}')">View</button>
+            <button class="btn-action btn-danger" onclick="deleteUserRecord('${b.id}')">Delete</button>
+          </div>
+        </td>
+      </tr>
+    `).join('');
+  }
+
+  /* ── Render Bookings Table ── */
+  function renderBookingsTable() {
+    const tbody = document.getElementById('bookingsTableBody');
+    if (!tbody) return;
+
+    const mockBookings = [
+      { id: 'BK-2026-901', customer: 'Priya Sharma', worker: 'Ramesh Kumar', service: 'Certified Electrician', amount: 1250, otp: '8492', status: 'In Progress' },
+      { id: 'BK-2026-894', customer: 'Rajesh Patel', worker: 'Suresh Yadav', service: 'Emergency Plumber', amount: 950, otp: '3219', status: 'Matched' },
+      { id: 'BK-2026-880', customer: 'Anita Desai', worker: 'Dilip Verma', service: 'Home Painter', amount: 1800, otp: '7105', status: 'Completed' },
+      { id: 'BK-2026-871', customer: 'Apex Infra Ltd', worker: 'Raju Shinde', service: 'Warehouse Loader', amount: 3500, otp: '4920', status: 'Completed' }
+    ];
+
+    tbody.innerHTML = mockBookings.map(b => `
+      <tr>
+        <td style="font-family: var(--font-mono); font-size: 0.82rem; color: #60a5fa; font-weight: 700;">${b.id}</td>
+        <td>${b.customer}</td>
+        <td>${b.worker}</td>
+        <td>${b.service}</td>
+        <td style="font-family: var(--font-mono); font-weight: 700; color: #34d399;">₹${b.amount.toLocaleString()}</td>
+        <td><span style="font-family: var(--font-mono); background: rgba(59,130,246,0.15); color: #93c5fd; padding: 0.2rem 0.5rem; border-radius: 6px;">${b.otp}</span></td>
+        <td><span class="badge-pill ${b.status === 'Completed' ? 'badge-active' : 'badge-verified'}">${b.status}</span></td>
+      </tr>
+    `).join('');
+  }
+
+  /* ── Render Disputes Table ── */
+  function renderDisputesTable() {
+    const tbody = document.getElementById('disputesTableBody');
+    if (!tbody) return;
+
+    const mockDisputes = [
+      { id: 'DISP-104', bookingId: 'BK-2026-889', raisedBy: 'Priya Sharma (Customer)', reason: 'Worker arrived 45 mins late & tools missing', held: 950 },
+      { id: 'DISP-102', bookingId: 'BK-2026-865', raisedBy: 'Mohan Lal (Worker)', reason: 'Customer demanded extra unpaid carpentry tasks', held: 1400 }
+    ];
+
+    document.getElementById('badgeDisputesCount').textContent = mockDisputes.length;
+
+    tbody.innerHTML = mockDisputes.map(d => `
+      <tr>
+        <td style="font-family: var(--font-mono); font-weight: 700; color: #f87171;">${d.id}</td>
+        <td style="font-family: var(--font-mono);">${d.bookingId}</td>
+        <td><strong>${d.raisedBy}</strong></td>
+        <td style="color: var(--text-muted);">${d.reason}</td>
+        <td style="font-family: var(--font-mono); font-weight: 700; color: #fbbf24;">₹${d.held}</td>
+        <td>
+          <div class="table-actions">
+            <button class="btn-action btn-approve" onclick="resolveDispute('${d.id}', 'refund')">Refund Customer</button>
+            <button class="btn-action" onclick="resolveDispute('${d.id}', 'payout')" style="color:#60a5fa;">Pay Worker</button>
+            <button class="btn-action" onclick="resolveDispute('${d.id}', 'split')">50/50 Split</button>
+          </div>
+        </td>
+      </tr>
+    `).join('');
+  }
+
+  function resolveDispute(dispId, outcome) {
+    alert(`Dispute ${dispId} resolved with outcome: [${outcome.toUpperCase()}]. Escrow pool updated.`);
+  }
+
+  /* ── Render Escrow Table ── */
+  function renderEscrowTable() {
+    const tbody = document.getElementById('escrowLedgerBody');
+    if (!tbody) return;
+
+    const ledgerEntries = [
+      { id: 'TXN-9081', booking: 'BK-2026-901', total: 1250, comm: 312.5, payout: 937.5, state: 'Locked in Escrow' },
+      { id: 'TXN-9077', booking: 'BK-2026-894', total: 950, comm: 209.0, payout: 741.0, state: 'Locked in Escrow' },
+      { id: 'TXN-9065', booking: 'BK-2026-880', total: 1800, comm: 396.0, payout: 1404.0, state: 'Disbursed to Worker' },
+      { id: 'TXN-9052', booking: 'BK-2026-871', total: 3500, comm: 700.0, payout: 2800.0, state: 'Disbursed to Worker' }
+    ];
+
+    tbody.innerHTML = ledgerEntries.map(e => `
+      <tr>
+        <td style="font-family: var(--font-mono); font-size: 0.82rem; color: #94a3b8;">${e.id}</td>
+        <td style="font-family: var(--font-mono); color: #60a5fa;">${e.booking}</td>
+        <td style="font-family: var(--font-mono); font-weight: 700;">₹${e.total.toLocaleString()}</td>
+        <td style="font-family: var(--font-mono); color: #38bdf8;">₹${e.comm.toLocaleString()}</td>
+        <td style="font-family: var(--font-mono); color: #34d399; font-weight: 700;">₹${e.payout.toLocaleString()}</td>
+        <td><span class="badge-pill ${e.state.includes('Disbursed') ? 'badge-active' : 'badge-pending'}">${e.state}</span></td>
+      </tr>
+    `).join('');
+  }
+
+  /* ── View User Modal ── */
+  function viewUserModal(userId) {
+    const user = AuthSystem.getAllUsers().find(u => u.id === userId);
+    if (!user) return;
+
+    document.getElementById('modalUserTitle').textContent = `${user.name} (${getRoleLabel(user.role)})`;
+    const contentEl = document.getElementById('modalUserContent');
+
+    contentEl.innerHTML = `
+      <div class="detail-grid">
+        <div class="detail-card"><div class="detail-label">Full Name</div><div class="detail-val">${user.name}</div></div>
+        <div class="detail-card"><div class="detail-label">Phone Number</div><div class="detail-val">${user.phone}</div></div>
+        <div class="detail-card"><div class="detail-label">Email</div><div class="detail-val">${user.email || '—'}</div></div>
+        <div class="detail-card"><div class="detail-label">City Zone</div><div class="detail-val">${user.city || 'Mumbai'}</div></div>
+        <div class="detail-card"><div class="detail-label">Role Category</div><div class="detail-val">${getRoleLabel(user.role)}</div></div>
+        <div class="detail-card"><div class="detail-label">Account Status</div><div class="detail-val" style="color:#34d399;">${user.status}</div></div>
+        ${user.category ? `<div class="detail-card"><div class="detail-label">Trade Skill</div><div class="detail-val">${user.category}</div></div>` : ''}
+        ${user.companyName ? `<div class="detail-card"><div class="detail-label">Company</div><div class="detail-val">${user.companyName}</div></div>` : ''}
+        ${user.gst ? `<div class="detail-card"><div class="detail-label">GSTIN</div><div class="detail-val">${user.gst}</div></div>` : ''}
+      </div>
+      <div style="margin-top: 1.5rem; text-align: right;">
+        <button class="btn-action" onclick="closeUserModal()">Close Dossier</button>
+      </div>
+    `;
+
+    document.getElementById('detailModal').classList.add('open');
+  }
+
+  function closeUserModal() {
+    document.getElementById('detailModal').classList.remove('open');
+  }
+
+  function approveWorker(userId) {
+    AuthSystem.updateUser(userId, { status: 'active', onboardingStage: 7 });
+    refreshAdminData();
+  }
+
+  function deleteUserRecord(userId) {
+    if (!confirm('Are you sure you want to permanently delete this account?')) return;
+    AuthSystem.deleteUser(userId);
+    refreshAdminData();
+  }
+
+  function filterLabourByTrade(trade) {
+    const workers = AuthSystem.getUsersByRole('labour');
+    const filtered = trade === 'all' ? workers : workers.filter(w => (w.category || '').toLowerCase() === trade.toLowerCase());
+    renderLabourTable(filtered);
+  }
+
+  function filterTableRows(tbodyId, search) {
+    const q = search.toLowerCase();
+    document.querySelectorAll(`#${tbodyId} tr`).forEach(row => {
+      row.style.display = row.textContent.toLowerCase().includes(q) ? '' : 'none';
+    });
+  }
+
+  /* ── Helper Styling Utilities ── */
+  function getRoleLabel(role) {
+    return { customer: 'Customer', labour: 'Worker (Labour)', b2b: 'B2B Client', admin: 'Admin' }[role] || role;
+  }
+  function getRoleBadgeClass(role) {
+    return { customer: 'badge-verified', labour: 'badge-active', b2b: 'badge-pending', admin: 'badge-blocked' }[role] || 'badge-active';
+  }
+  function getRoleGradient(role) {
+    return { customer: '#2563eb', labour: '#059669', b2b: '#7c3aed', admin: '#dc2626' }[role] || '#3b82f6';
+  }
+
+  /* ── Startup Bootstrap ── */
+  document.addEventListener('DOMContentLoaded', () => {
+    lucide.createIcons();
+    const session = AuthSystem.getSession();
+    if (session && session.role === 'admin') {
+      showAdminWorkspace();
+    }
+    // Close modal on outside click
+    document.getElementById('detailModal').addEventListener('click', (e) => {
+      if (e.target.id === 'detailModal') closeUserModal();
+    });
+  });
+</script>
+</body>
+</html>

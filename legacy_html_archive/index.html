@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>LabourLink — Two-Sided Digital Labour Platform</title>
+  <meta name="description" content="India's leading verified on-demand labour aggregator platform with separate dedicated portals for Customers, Workers, B2B Businesses, and Administrators.">
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <!-- Stylesheet -->
+  <link rel="stylesheet" href="css/styles.css">
+  <style>
+    .landing-hero {
+      text-align: center;
+      padding: 4rem 1.5rem 2.5rem;
+      max-width: 840px;
+      margin: 0 auto;
+    }
+    .landing-hero h1 {
+      font-family: var(--font-heading);
+      font-size: clamp(2.2rem, 5vw, 3.4rem);
+      font-weight: 800;
+      line-height: 1.15;
+      letter-spacing: -0.02em;
+    }
+    .landing-hero h1 span {
+      background: linear-gradient(135deg, #60a5fa, #a855f7);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+    .landing-hero p {
+      font-size: 1.1rem;
+      color: var(--text-muted);
+      margin-top: 1rem;
+      line-height: 1.6;
+    }
+
+    .portal-cards-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 1.5rem;
+      max-width: 1180px;
+      margin: 0 auto 3rem;
+      padding: 0 1.5rem;
+    }
+    .portal-launch-card {
+      background: var(--bg-surface);
+      border: 1px solid var(--border-glass);
+      border-radius: var(--radius-xl);
+      padding: 2.25rem 1.75rem;
+      display: flex;
+      flex-direction: column;
+      position: relative;
+      transition: all 0.25s ease;
+      box-shadow: var(--shadow-md);
+      text-decoration: none;
+    }
+    .portal-launch-card:hover {
+      transform: translateY(-6px);
+      border-color: rgba(59, 130, 246, 0.5);
+      box-shadow: var(--shadow-lg);
+    }
+    .portal-icon-wrap {
+      width: 54px;
+      height: 54px;
+      border-radius: 14px;
+      display: grid;
+      place-items: center;
+      font-size: 1.75rem;
+      margin-bottom: 1.25rem;
+    }
+    .portal-card-title {
+      font-family: var(--font-heading);
+      font-size: 1.35rem;
+      font-weight: 800;
+      color: #fff;
+      margin-bottom: 0.5rem;
+    }
+    .portal-card-desc {
+      font-size: 0.88rem;
+      color: var(--text-muted);
+      line-height: 1.55;
+      margin-bottom: 1.5rem;
+      flex: 1;
+    }
+    .portal-card-btn {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.5rem;
+      padding: 0.75rem;
+      border-radius: var(--radius-md);
+      font-family: var(--font-heading);
+      font-size: 0.95rem;
+      font-weight: 700;
+      color: white;
+      text-decoration: none;
+      transition: opacity 0.2s;
+    }
+    .portal-card-btn:hover {
+      opacity: 0.9;
+    }
+
+    .admin-bar-strip {
+      max-width: 1180px;
+      margin: 0 auto 4rem;
+      padding: 0 1.5rem;
+    }
+    .admin-strip-card {
+      background: rgba(139, 92, 246, 0.08);
+      border: 1px solid rgba(139, 92, 246, 0.25);
+      border-radius: var(--radius-lg);
+      padding: 1.25rem 1.75rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 1rem;
+    }
+
+    @media (max-width: 900px) {
+      .portal-cards-grid { grid-template-columns: 1fr; }
+      .admin-strip-card { flex-direction: column; text-align: center; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Top Global Header -->
+  <header class="app-header" style="background: var(--bg-surface); border-bottom: 1px solid var(--border-glass);">
+    <div class="header-container" style="max-width: 1200px; margin: 0 auto; display: flex; align-items: center; justify-content: space-between; padding: 1rem 1.5rem;">
+      <div style="display: flex; align-items: center; gap: 0.75rem;">
+        <div style="width: 38px; height: 38px; background: linear-gradient(135deg, #2563eb, #8b5cf6); border-radius: 10px; display: grid; place-items: center; color: white;">
+          <i data-lucide="hard-hat" style="width: 20px; height: 20px;"></i>
+        </div>
+        <div style="font-family: var(--font-heading); font-size: 1.35rem; font-weight: 800; color: #fff;">
+          Labour<span style="color: #3b82f6;">Link</span>
+        </div>
+      </div>
+
+      <div style="display: flex; align-items: center; gap: 1rem;">
+        <a href="auth.html" class="btn btn-primary" style="padding: 0.5rem 1.1rem; font-size: 0.88rem; text-decoration: none;">
+          <i data-lucide="log-in" style="width: 14px; height: 14px; display: inline;"></i> Sign In / Register
+        </a>
+        <a href="admin.html" class="btn btn-glass" style="padding: 0.5rem 1rem; font-size: 0.88rem; text-decoration: none;">
+          <i data-lucide="shield" style="width: 14px; height: 14px; display: inline;"></i> Admin Panel
+        </a>
+      </div>
+    </div>
+  </header>
+
+  <!-- Hero -->
+  <section class="landing-hero">
+    <h1>Two-Sided Labour Marketplace with <span>Isolated Dedicated Portals</span></h1>
+    <p>
+      Customers, Workers, and Businesses access their own secure, role-specific panels with safe escrow payments and full regulatory compliance.
+    </p>
+  </section>
+
+  <!-- 3 Dedicated Portals -->
+  <section class="portal-cards-grid">
+    <!-- Customer Portal Card -->
+    <div class="portal-launch-card">
+      <div class="portal-icon-wrap" style="background: rgba(37, 99, 235, 0.15); color: #60a5fa;">🏠</div>
+      <div class="portal-card-title">Customer Portal</div>
+      <div class="portal-card-desc">
+        Instant on-demand booking for electricians, plumbers, painters, and helpers. Transparent upfront pricing, live GPS tracking, and 100% safe escrow payment protection.
+      </div>
+      <a href="customer.html" class="portal-card-btn" style="background: #2563eb;">
+        <span>Open Customer Portal</span>
+        <i data-lucide="arrow-right" style="width: 16px; height: 16px;"></i>
+      </a>
+    </div>
+
+    <!-- Worker Hub Card -->
+    <div class="portal-launch-card">
+      <div class="portal-icon-wrap" style="background: rgba(16, 185, 129, 0.15); color: #34d399;">👷</div>
+      <div class="portal-card-title">Worker Hub (Labour)</div>
+      <div class="portal-card-desc">
+        Sequential live dispatch radar, OTP job verification cockpit, 7-stage digital onboarding with police verification, and instant UPI escrow wallet payouts.
+      </div>
+      <a href="labour.html" class="portal-card-btn" style="background: #059669;">
+        <span>Open Worker Hub</span>
+        <i data-lucide="arrow-right" style="width: 16px; height: 16px;"></i>
+      </a>
+    </div>
+
+    <!-- B2B Enterprise Portal Card -->
+    <div class="portal-launch-card">
+      <div class="portal-icon-wrap" style="background: rgba(139, 92, 246, 0.15); color: #c084fc;">🏢</div>
+      <div class="portal-card-title">B2B Enterprise Portal</div>
+      <div class="portal-card-desc">
+        Bulk workforce deployment, monthly contract management, guaranteed SLA fulfillment, real-time timesheets &amp; attendance, and consolidated GST billing.
+      </div>
+      <a href="b2b.html" class="portal-card-btn" style="background: #7c3aed;">
+        <span>Open Enterprise Portal</span>
+        <i data-lucide="arrow-right" style="width: 16px; height: 16px;"></i>
+      </a>
+    </div>
+  </section>
+
+  <!-- Admin Quick Strip -->
+  <section class="admin-bar-strip">
+    <div class="admin-strip-card">
+      <div>
+        <div style="font-family: var(--font-heading); font-size: 1.15rem; font-weight: 700; color: #fff;">
+          🛡️ Super Admin Command Desk
+        </div>
+        <div style="font-size: 0.85rem; color: var(--text-muted); margin-top: 0.25rem;">
+          Inspect all registered users, approve worker KYC, resolve disputes, and monitor the live Escrow Pool.
+        </div>
+      </div>
+      <a href="admin.html" class="btn btn-primary" style="background: linear-gradient(135deg, #8b5cf6, #3b82f6); padding: 0.65rem 1.25rem; font-size: 0.9rem; text-decoration: none; white-space: nowrap;">
+        Open Admin Panel →
+      </a>
+    </div>
+  </section>
+
+  <script src="js/auth.js"></script>
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      lucide.createIcons();
+      // If user is already authenticated, take them directly to their portal!
+      const session = AuthSystem.getSession();
+      if (session && session.role) {
+        window.location.href = AuthSystem.getRedirectUrlForRole(session.role);
+      }
+    });
+  </script>
+</body>
+</html>

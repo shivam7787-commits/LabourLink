@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>LabourLink — Enterprise &amp; B2B Portal</title>
+  <meta name="description" content="Enterprise bulk labour hiring, monthly contracts, SLA guarantees, real-time digital attendance and automated payroll.">
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <!-- Stylesheet -->
+  <link rel="stylesheet" href="css/styles.css">
+  <style>
+    .portal-nav-bar {
+      background: var(--bg-surface);
+      border-bottom: 1px solid var(--border-glass);
+      padding: 0.75rem 1.5rem;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      box-shadow: var(--shadow-sm);
+    }
+    .portal-nav-inner {
+      max-width: 1400px;
+      margin: 0 auto;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 1rem;
+    }
+    .portal-brand {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      text-decoration: none;
+    }
+    .portal-brand-icon {
+      width: 38px;
+      height: 38px;
+      border-radius: 10px;
+      background: linear-gradient(135deg, #7c3aed, #6d28d9);
+      display: grid;
+      place-items: center;
+      color: white;
+    }
+    .portal-tag {
+      font-size: 0.72rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      background: rgba(124, 58, 237, 0.15);
+      color: #c084fc;
+      border: 1px solid rgba(124, 58, 237, 0.3);
+      padding: 0.2rem 0.6rem;
+      border-radius: 20px;
+    }
+    .b2b-status-pill {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      background: rgba(99, 102, 241, 0.12);
+      border: 1px solid rgba(99, 102, 241, 0.3);
+      padding: 0.35rem 0.85rem;
+      border-radius: 20px;
+      font-size: 0.8rem;
+      color: #a5b4fc;
+      font-weight: 600;
+    }
+    .user-chip {
+      display: flex;
+      align-items: center;
+      gap: 0.65rem;
+      background: var(--bg-surface-elevated);
+      border: 1px solid var(--border-glass);
+      border-radius: 30px;
+      padding: 0.35rem 0.9rem 0.35rem 0.5rem;
+    }
+    .user-avatar-sm {
+      width: 30px;
+      height: 30px;
+      border-radius: 50%;
+      background: #7c3aed;
+      color: white;
+      font-weight: 700;
+      display: grid;
+      place-items: center;
+      font-size: 0.85rem;
+    }
+    .btn-logout {
+      display: flex;
+      align-items: center;
+      gap: 0.35rem;
+      background: transparent;
+      border: 1px solid var(--border-glass);
+      color: var(--text-muted);
+      border-radius: 8px;
+      padding: 0.45rem 0.8rem;
+      font-size: 0.82rem;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .btn-logout:hover {
+      border-color: #ef4444;
+      color: #ef4444;
+    }
+  </style>
+</head>
+<body>
+  <!-- Dedicated B2B Enterprise Navigation -->
+  <header class="portal-nav-bar">
+    <div class="portal-nav-inner">
+      <div style="display: flex; align-items: center; gap: 1rem;">
+        <a href="b2b.html" class="portal-brand">
+          <div class="portal-brand-icon"><i data-lucide="building-2"></i></div>
+          <div style="font-family: var(--font-heading); font-size: 1.25rem; font-weight: 800; color: #fff;">
+            Labour<span style="color: #a855f7;">Link</span>
+          </div>
+        </a>
+        <span class="portal-tag"><i data-lucide="shield" style="width:12px;height:12px;display:inline;"></i> Enterprise B2B</span>
+      </div>
+
+      <!-- SLA & Enterprise Health Pill -->
+      <div style="display: flex; align-items: center; gap: 0.75rem;">
+        <div class="b2b-status-pill">
+          <i data-lucide="award" style="width: 14px; height: 14px;"></i>
+          <span>Enterprise SLA: <strong>99.4% Attendance</strong></span>
+        </div>
+        <div style="display: flex; align-items: center; gap: 0.4rem; font-size: 0.8rem; color: var(--text-muted);">
+          <i data-lucide="file-check-2" style="width: 14px; height: 14px; color: #10b981;"></i>
+          <span id="headerB2bGst">GST Verified</span>
+        </div>
+      </div>
+
+      <!-- Business Profile & Sign Out -->
+      <div style="display: flex; align-items: center; gap: 0.75rem;">
+        <div class="user-chip">
+          <div class="user-avatar-sm" id="b2bAvatarLetter">B</div>
+          <div>
+            <div id="b2bCompanyName" style="font-size: 0.85rem; font-weight: 700; color: #fff;">Enterprise Client</div>
+            <div id="b2bContactPerson" style="font-size: 0.72rem; color: #c084fc;">Corporate Account</div>
+          </div>
+        </div>
+        <button class="btn-logout" onclick="AuthSystem.logout()" title="Sign out of enterprise account">
+          <i data-lucide="log-out" style="width: 14px; height: 14px;"></i>
+          <span>Sign Out</span>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main View Area -->
+  <main class="main-content" id="mainContainer" style="padding-top: 1.5rem; padding-bottom: 3rem;">
+    <div style="text-align: center; padding: 4rem;">
+      <p style="color: var(--text-muted);">Loading B2B Enterprise Portal...</p>
+    </div>
+  </main>
+
+  <!-- Global Modals -->
+  <div id="modalOverlay" class="modal-overlay hidden" aria-hidden="true">
+    <div class="modal-card" id="modalCard"></div>
+  </div>
+
+  <!-- Toast Notification Container -->
+  <div class="toast-container" id="toastContainer" aria-live="polite"></div>
+
+  <!-- Engines & Dependencies -->
+  <script src="js/auth.js"></script>
+  <script src="js/store.js"></script>
+  <script src="js/matchingEngine.js"></script>
+  <script src="js/pricingEngine.js"></script>
+  <script src="js/escrowEngine.js"></script>
+  <script src="js/ratingPenaltyEngine.js"></script>
+  <script src="js/views/b2bView.js"></script>
+
+  <script>
+    // Global Toast Function
+    window.showToast = function(title, body, type = 'info') {
+      const container = document.getElementById('toastContainer');
+      if (!container) return;
+      const toast = document.createElement('div');
+      toast.className = `toast toast-${type}`;
+      toast.innerHTML = `
+        <div>
+          <div class="toast-title">${title}</div>
+          <div class="toast-body">${body}</div>
+        </div>
+      `;
+      container.appendChild(toast);
+      setTimeout(() => {
+        toast.style.opacity = '0';
+        toast.style.transform = 'translateX(20px)';
+        toast.style.transition = 'all 0.3s ease';
+        setTimeout(() => toast.remove(), 300);
+      }, 4500);
+    };
+
+    document.addEventListener('DOMContentLoaded', () => {
+      // 1. Enforce B2B Role Access
+      const session = AuthSystem.requireAuth('b2b');
+      if (!session) return;
+
+      // 2. Set business info in header
+      const companyEl = document.getElementById('b2bCompanyName');
+      const contactEl = document.getElementById('b2bContactPerson');
+      const gstEl = document.getElementById('headerB2bGst');
+      const avatarEl = document.getElementById('b2bAvatarLetter');
+
+      const companyName = session.companyName || session.name || 'Apex Infrastructure Ltd';
+      if (companyEl) companyEl.textContent = companyName;
+      if (contactEl) contactEl.textContent = session.name ? `${session.name} (Authorized)` : 'Enterprise Account';
+      if (gstEl) gstEl.textContent = session.gst ? `GST: ${session.gst}` : 'GST Verified';
+      if (avatarEl) avatarEl.textContent = companyName.charAt(0).toUpperCase();
+
+      // 3. Render B2B View
+      const container = document.getElementById('mainContainer');
+      B2bView.render(container);
+      lucide.createIcons();
+    });
+  </script>
+</body>
+</html>

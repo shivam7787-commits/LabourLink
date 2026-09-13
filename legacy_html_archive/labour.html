@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>LabourLink — Worker Hub (Labour)</title>
+  <meta name="description" content="Worker hub for verified professionals: live job dispatch radar, active job cockpit, 7-step onboarding, and escrow wallet.">
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <!-- Stylesheet -->
+  <link rel="stylesheet" href="css/styles.css">
+  <style>
+    .portal-nav-bar {
+      background: var(--bg-surface);
+      border-bottom: 1px solid var(--border-glass);
+      padding: 0.75rem 1.5rem;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      box-shadow: var(--shadow-sm);
+    }
+    .portal-nav-inner {
+      max-width: 1400px;
+      margin: 0 auto;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 1rem;
+    }
+    .portal-brand {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      text-decoration: none;
+    }
+    .portal-brand-icon {
+      width: 38px;
+      height: 38px;
+      border-radius: 10px;
+      background: linear-gradient(135deg, #059669, #047857);
+      display: grid;
+      place-items: center;
+      color: white;
+    }
+    .portal-tag {
+      font-size: 0.72rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      background: rgba(16, 185, 129, 0.15);
+      color: #34d399;
+      border: 1px solid rgba(16, 185, 129, 0.3);
+      padding: 0.2rem 0.6rem;
+      border-radius: 20px;
+    }
+    .status-switch {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      background: var(--bg-surface-elevated);
+      border: 1px solid var(--border-glass);
+      border-radius: 20px;
+      padding: 0.3rem 0.75rem;
+      font-size: 0.8rem;
+      font-weight: 600;
+    }
+    .status-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #10b981;
+      box-shadow: 0 0 8px #10b981;
+    }
+    .wallet-chip {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      background: rgba(245, 158, 11, 0.12);
+      border: 1px solid rgba(245, 158, 11, 0.3);
+      padding: 0.35rem 0.85rem;
+      border-radius: 20px;
+      font-size: 0.82rem;
+      color: #fbbf24;
+      font-weight: 700;
+    }
+    .user-chip {
+      display: flex;
+      align-items: center;
+      gap: 0.65rem;
+      background: var(--bg-surface-elevated);
+      border: 1px solid var(--border-glass);
+      border-radius: 30px;
+      padding: 0.35rem 0.9rem 0.35rem 0.5rem;
+    }
+    .user-avatar-sm {
+      width: 30px;
+      height: 30px;
+      border-radius: 50%;
+      background: #059669;
+      color: white;
+      font-weight: 700;
+      display: grid;
+      place-items: center;
+      font-size: 0.85rem;
+    }
+    .btn-logout {
+      display: flex;
+      align-items: center;
+      gap: 0.35rem;
+      background: transparent;
+      border: 1px solid var(--border-glass);
+      color: var(--text-muted);
+      border-radius: 8px;
+      padding: 0.45rem 0.8rem;
+      font-size: 0.82rem;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .btn-logout:hover {
+      border-color: #ef4444;
+      color: #ef4444;
+    }
+  </style>
+</head>
+<body>
+  <!-- Dedicated Worker / Labour Navigation -->
+  <header class="portal-nav-bar">
+    <div class="portal-nav-inner">
+      <div style="display: flex; align-items: center; gap: 1rem;">
+        <a href="labour.html" class="portal-brand">
+          <div class="portal-brand-icon"><i data-lucide="hammer"></i></div>
+          <div style="font-family: var(--font-heading); font-size: 1.25rem; font-weight: 800; color: #fff;">
+            Labour<span style="color: #10b981;">Link</span>
+          </div>
+        </a>
+        <span class="portal-tag"><i data-lucide="shield-check" style="width:12px;height:12px;display:inline;"></i> Worker Hub</span>
+      </div>
+
+      <!-- Live Dispatch Status & Escrow Wallet -->
+      <div style="display: flex; align-items: center; gap: 0.75rem;">
+        <div class="status-switch">
+          <span class="status-dot"></span>
+          <span style="color: #34d399;">Online • Ready for Jobs</span>
+        </div>
+        <div class="wallet-chip">
+          <i data-lucide="wallet" style="width: 14px; height: 14px;"></i>
+          <span>Wallet: <strong id="headerLabourWallet">₹3,250</strong></span>
+        </div>
+      </div>
+
+      <!-- Worker Profile & Sign Out -->
+      <div style="display: flex; align-items: center; gap: 0.75rem;">
+        <div class="user-chip">
+          <div class="user-avatar-sm" id="workerAvatarLetter">W</div>
+          <div>
+            <div id="workerUserName" style="font-size: 0.85rem; font-weight: 700; color: #fff;">Worker Pro</div>
+            <div id="workerUserCategory" style="font-size: 0.72rem; color: #34d399;">Certified Electrician ★ 4.9</div>
+          </div>
+        </div>
+        <button class="btn-logout" onclick="AuthSystem.logout()" title="Sign out of worker account">
+          <i data-lucide="log-out" style="width: 14px; height: 14px;"></i>
+          <span>Sign Out</span>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main View Area -->
+  <main class="main-content" id="mainContainer" style="padding-top: 1.5rem; padding-bottom: 3rem;">
+    <div style="text-align: center; padding: 4rem;">
+      <p style="color: var(--text-muted);">Loading Worker Command Hub...</p>
+    </div>
+  </main>
+
+  <!-- Global Modals -->
+  <div id="modalOverlay" class="modal-overlay hidden" aria-hidden="true">
+    <div class="modal-card" id="modalCard"></div>
+  </div>
+
+  <!-- Toast Notification Container -->
+  <div class="toast-container" id="toastContainer" aria-live="polite"></div>
+
+  <!-- Engines & Dependencies -->
+  <script src="js/auth.js"></script>
+  <script src="js/store.js"></script>
+  <script src="js/matchingEngine.js"></script>
+  <script src="js/pricingEngine.js"></script>
+  <script src="js/escrowEngine.js"></script>
+  <script src="js/ratingPenaltyEngine.js"></script>
+  <script src="js/views/labourView.js"></script>
+
+  <script>
+    // Global Toast Function
+    window.showToast = function(title, body, type = 'info') {
+      const container = document.getElementById('toastContainer');
+      if (!container) return;
+      const toast = document.createElement('div');
+      toast.className = `toast toast-${type}`;
+      toast.innerHTML = `
+        <div>
+          <div class="toast-title">${title}</div>
+          <div class="toast-body">${body}</div>
+        </div>
+      `;
+      container.appendChild(toast);
+      setTimeout(() => {
+        toast.style.opacity = '0';
+        toast.style.transform = 'translateX(20px)';
+        toast.style.transition = 'all 0.3s ease';
+        setTimeout(() => toast.remove(), 300);
+      }, 4500);
+    };
+
+    document.addEventListener('DOMContentLoaded', () => {
+      // 1. Enforce Labour / Worker Role Access
+      const session = AuthSystem.requireAuth('labour');
+      if (!session) return;
+
+      // 2. Set worker info in header
+      const nameEl = document.getElementById('workerUserName');
+      const catEl = document.getElementById('workerUserCategory');
+      const avatarEl = document.getElementById('workerAvatarLetter');
+      const walletEl = document.getElementById('headerLabourWallet');
+
+      if (nameEl) nameEl.textContent = session.name || 'Professional Worker';
+      if (catEl) catEl.textContent = `${session.category || 'Skilled Pro'} ★ ${session.rating || '4.9'}`;
+      if (avatarEl && session.name) avatarEl.textContent = session.name.charAt(0).toUpperCase();
+      if (walletEl) walletEl.textContent = `₹${(session.walletBalance || 3250).toLocaleString()}`;
+
+      // 3. Sync worker with central Store
+      const state = window.LabourLinkStore.getState();
+      const currentWorker = state.labourList.find(l => l.id === session.id) || state.labourList[0];
+      if (session.name) currentWorker.name = session.name;
+      if (session.category) currentWorker.trade = session.category;
+
+      // 4. Render Worker View
+      const container = document.getElementById('mainContainer');
+      LabourView.render(container);
+      lucide.createIcons();
+    });
+  </script>
+</body>
+</html>

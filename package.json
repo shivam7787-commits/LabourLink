@@ -1,0 +1,19 @@
+{
+  "name": "labourlink-platform",
+  "version": "2.0.0",
+  "description": "LabourLink - Full-Stack React & Express Two-Sided Digital Labour Platform",
+  "scripts": {
+    "backend": "node --watch backend/server.js",
+    "frontend": "npm run dev --prefix frontend",
+    "dev": "concurrently \"npm run backend\" \"npm run frontend\"",
+    "build": "npm run build --prefix frontend",
+    "render-build": "cd backend && npm install && cd ../frontend && npm install && npm run build",
+    "vercel-build": "cd backend && npm install && cd ../frontend && npm install && npm run build",
+    "start": "node backend/server.js",
+    "seed": "node backend/seed.js",
+    "test-engines": "node test_engines.js"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.2"
+  }
+}
