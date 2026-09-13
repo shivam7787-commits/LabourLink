@@ -1,15 +1,18 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { HardHat, Shield, Check, Zap } from 'lucide-react';
+import { HardHat, Shield, Check, MapPin, Navigation, CheckCircle, AlertTriangle } from 'lucide-react';
+import { useGeolocation } from '../hooks/useGeolocation';
 
 export const AuthPage = () => {
-  const { login, register, demoLogin } = useAuth();
+  const { login, register } = useAuth();
   const navigate = useNavigate();
+  const gps = useGeolocation();
 
   const [currentRole, setCurrentRole] = useState('customer');
   const [activeTab, setActiveTab] = useState('login'); // 'login' | 'register'
   const [error, setError] = useState('');
+  const [successMsg, setSuccessMsg] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Form states
@@ -31,19 +34,6 @@ export const AuthPage = () => {
     setError('');
   };
 
-  const handleDemoLogin = async () => {
-    setError('');
-    setIsSubmitting(true);
-    try {
-      const res = await demoLogin(currentRole);
-      navigate(res.redirectPath, { replace: true });
-    } catch (err) {
-      setError(err.message);
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
   const handleLoginSubmit = async (e) => {
     e.preventDefault();
     setError('');
@@ -61,6 +51,14 @@ export const AuthPage = () => {
   const handleRegisterSubmit = async (e) => {
     e.preventDefault();
     setError('');
+    setSuccessMsg('');
+
+    // Mandatory location check for Labour role
+    if (currentRole === 'labour' && !gps.coords && gps.permissionState !== 'granted') {
+      setError('Location access is mandatory for Worker registration so you can receive dispatch requests. Please click "Allow Location Access" below.');
+      return;
+    }
+
     setIsSubmitting(true);
 
     try {
@@ -77,6 +75,7 @@ export const AuthPage = () => {
       };
 
       const res = await register(currentRole, payload);
+      // Auto-login after registration and navigate to portal
       navigate(res.redirectPath, { replace: true });
     } catch (err) {
       setError(err.message);
@@ -230,23 +229,16 @@ export const AuthPage = () => {
             </button>
           </div>
 
-          {/* 1-Click Fast Demo Helper */}
-          <div style={{ background: 'rgba(16, 185, 129, 0.08)', border: '1px solid rgba(16, 185, 129, 0.25)', borderRadius: 'var(--radius-md)', padding: '0.85rem 1rem', marginBottom: '1.25rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.75rem' }}>
-            <div style={{ fontSize: '0.82rem', color: '#a7f3d0' }}>
-              ⚡ <strong>1-Click Fast Demo:</strong> Test with a pre-configured <strong style={{ textTransform: 'capitalize' }}>{currentRole}</strong> account.
-            </div>
-            <button
-              onClick={handleDemoLogin}
-              disabled={isSubmitting}
-              style={{ background: '#10b981', border: 'none', color: 'white', borderRadius: 'var(--radius-sm)', padding: '0.4rem 0.8rem', fontSize: '0.78rem', fontWeight: '700', cursor: 'pointer', whiteSpace: 'nowrap' }}
-            >
-              1-Click Enter
-            </button>
-          </div>
 
           {error && (
             <div style={{ background: 'rgba(239, 68, 68, 0.15)', border: '1px solid rgba(239, 68, 68, 0.35)', borderRadius: 'var(--radius-md)', padding: '0.65rem 0.9rem', color: '#fca5a5', fontSize: '0.82rem', marginBottom: '1rem' }}>
               {error}
+            </div>
+          )}
+
+          {successMsg && (
+            <div style={{ background: 'rgba(16, 185, 129, 0.12)', border: '1px solid rgba(16, 185, 129, 0.35)', borderRadius: 'var(--radius-md)', padding: '0.65rem 0.9rem', color: '#6ee7b7', fontSize: '0.82rem', marginBottom: '1rem' }}>
+              ✅ {successMsg}
             </div>
           )}
 
@@ -290,6 +282,16 @@ export const AuthPage = () => {
               >
                 Sign In to {currentRole === 'labour' ? 'Worker Hub' : currentRole === 'b2b' ? 'B2B Portal' : 'Customer Portal'}
               </button>
+              <p style={{ textAlign: 'center', marginTop: '1rem', fontSize: '0.82rem', color: 'var(--text-muted)' }}>
+                New here?{' '}
+                <button
+                  type="button"
+                  onClick={() => { setActiveTab('register'); setError(''); setSuccessMsg(''); }}
+                  style={{ background: 'none', border: 'none', color: '#60a5fa', fontWeight: '600', cursor: 'pointer', padding: 0, fontSize: 'inherit', textDecoration: 'underline' }}
+                >
+                  Create your account →
+                </button>
+              </p>
             </form>
           ) : (
             /* Register Form */
@@ -430,6 +432,77 @@ export const AuthPage = () => {
                 />
               </div>
 
+              {/* Location Permission Section */}
+              <div style={{
+                background: gps.permissionState === 'granted' || gps.coords
+                  ? 'rgba(16, 185, 129, 0.08)'
+                  : gps.permissionState === 'denied'
+                  ? 'rgba(239, 68, 68, 0.08)'
+                  : 'rgba(59, 130, 246, 0.08)',
+                border: `1px solid ${
+                  gps.permissionState === 'granted' || gps.coords
+                    ? 'rgba(16, 185, 129, 0.3)'
+                    : gps.permissionState === 'denied'
+                    ? 'rgba(239, 68, 68, 0.3)'
+                    : 'rgba(59, 130, 246, 0.3)'
+                }`,
+                borderRadius: 'var(--radius-md)',
+                padding: '1rem',
+                marginBottom: '1.25rem'
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.4rem', flexWrap: 'wrap', gap: '0.5rem' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontWeight: '700', fontSize: '0.85rem', color: '#fff' }}>
+                    <MapPin size={16} style={{ color: gps.permissionState === 'granted' || gps.coords ? '#10b981' : '#60a5fa' }} />
+                    <span>Location Access {currentRole === 'labour' && <span style={{ color: '#ef4444', fontSize: '0.78rem' }}>(Mandatory for Workers)</span>}</span>
+                  </div>
+                  {gps.permissionState === 'granted' || gps.coords ? (
+                    <span style={{ fontSize: '0.75rem', color: '#34d399', fontWeight: '700', display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+                      <CheckCircle size={14} /> Location Granted
+                    </span>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={async () => {
+                        try {
+                          gps.startWatching();
+                          const pos = await gps.getOnce();
+                          if (!regAddress) {
+                            setRegAddress(`Live GPS (${pos.lat.toFixed(4)}, ${pos.lng.toFixed(4)})`);
+                          }
+                        } catch (err) {
+                          console.log('Location request:', err);
+                        }
+                      }}
+                      style={{
+                        background: '#3b82f6', border: 'none', color: '#fff',
+                        borderRadius: '6px', padding: '0.35rem 0.75rem',
+                        fontSize: '0.78rem', fontWeight: '700', cursor: 'pointer',
+                        display: 'flex', alignItems: 'center', gap: '0.35rem'
+                      }}
+                    >
+                      <Navigation size={12} /> Allow Location Access
+                    </button>
+                  )}
+                </div>
+                <p style={{ fontSize: '0.78rem', color: 'var(--text-muted)', margin: 0, lineHeight: '1.4' }}>
+                  {currentRole === 'labour'
+                    ? 'Mandatory: Your real-time device location is required to receive dispatches and calculate distance to customers.'
+                    : currentRole === 'customer'
+                    ? 'Allow location access to pinpoint your service address and track incoming workers. If denied now, you will be prompted again during booking.'
+                    : 'Location access enables worksite geofencing and real-time transit fleet monitoring.'}
+                </p>
+                {gps.coords && (
+                  <div style={{ fontSize: '0.74rem', color: '#10b981', marginTop: '0.35rem', fontFamily: 'var(--font-mono)' }}>
+                    📍 Coordinates: {gps.coords.lat.toFixed(5)}, {gps.coords.lng.toFixed(5)}
+                  </div>
+                )}
+                {gps.permissionState === 'denied' && (
+                  <div style={{ fontSize: '0.74rem', color: '#fca5a5', marginTop: '0.35rem' }}>
+                    ⚠️ Location access was denied in your browser. {currentRole === 'labour' ? 'Please enable location in your browser site settings to register.' : 'You can still register now, and location will be requested again at booking time.'}
+                  </div>
+                )}
+              </div>
+
               <button
                 type="submit"
                 disabled={isSubmitting}
@@ -438,6 +511,16 @@ export const AuthPage = () => {
               >
                 Register as {currentRole === 'labour' ? 'Worker' : currentRole === 'b2b' ? 'B2B Client' : 'Customer'}
               </button>
+              <p style={{ textAlign: 'center', marginTop: '1rem', fontSize: '0.82rem', color: 'var(--text-muted)' }}>
+                Already have an account?{' '}
+                <button
+                  type="button"
+                  onClick={() => { setActiveTab('login'); setError(''); setSuccessMsg(''); }}
+                  style={{ background: 'none', border: 'none', color: '#60a5fa', fontWeight: '600', cursor: 'pointer', padding: 0, fontSize: 'inherit', textDecoration: 'underline' }}
+                >
+                  Sign In →
+                </button>
+              </p>
             </form>
           )}
         </div>

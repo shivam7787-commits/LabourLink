@@ -74,11 +74,21 @@ export const api = {
     return request(query ? `/bookings?${query}` : '/bookings');
   },
 
+  getBooking: (id) =>
+    request(`/bookings/${id}`),
+
   createBooking: (bookingData) =>
     request('/bookings', { method: 'POST', body: JSON.stringify(bookingData) }),
 
   verifyOtp: (bookingId, otp) =>
     request(`/bookings/${bookingId}/verify-otp`, { method: 'PUT', body: JSON.stringify({ otp }) }),
+
+  updateBookingLocation: (bookingId, locationData) =>
+    request(`/bookings/${bookingId}/location`, { method: 'PUT', body: JSON.stringify(locationData) }),
+
+  // B2B Site Tracking
+  getB2bSitesTracking: () =>
+    request('/b2b/sites/tracking'),
 
   // Disputes
   getDisputes: () =>

@@ -39,7 +39,10 @@ const userSchema = new mongoose.Schema({
   totalContracts: { type: Number, default: 0 },
   activeHeadcount: { type: Number, default: 0 },
   creditLimit: { type: Number, default: 100000 },
-  monthlyBilling: { type: Number, default: 0 }
+  monthlyBilling: { type: Number, default: 0 },
+
+  // Internal flag — true only for demo/seeded accounts, never for real sign-ups
+  isSeeded: { type: Boolean, default: false }
 }, { timestamps: true });
 
 // Compound index: phone + role must be unique

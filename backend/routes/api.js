@@ -173,7 +173,18 @@ router.delete('/users/:id', authMiddleware, async (req, res) => {
 
 router.get('/services', async (req, res) => {
   try {
-    const services = await Service.find();
+    let services = await Service.find();
+    if (!services || services.length === 0) {
+      const defaultServices = [
+        { serviceId: 'srv_elec',  name: 'Certified Electrician',    skillLevel: 'Skilled',      baseHourlyRate: 250, baseDailyRate: 1800, icon: 'zap' },
+        { serviceId: 'srv_plumb', name: 'Emergency Plumber',        skillLevel: 'Skilled',      baseHourlyRate: 250, baseDailyRate: 1800, icon: 'droplet' },
+        { serviceId: 'srv_paint', name: 'Wall Painter & Primer',    skillLevel: 'Semi-Skilled', baseHourlyRate: 220, baseDailyRate: 1500, icon: 'paint-brush' },
+        { serviceId: 'srv_carp',  name: 'Furniture Carpenter',      skillLevel: 'Skilled',      baseHourlyRate: 260, baseDailyRate: 1900, icon: 'tool' },
+        { serviceId: 'srv_load',  name: 'Warehouse Loader / Mover', skillLevel: 'Unskilled',    baseHourlyRate: 180, baseDailyRate: 1200, icon: 'truck' },
+        { serviceId: 'srv_clean', name: 'Deep Home Cleaner',        skillLevel: 'Semi-Skilled', baseHourlyRate: 200, baseDailyRate: 1400, icon: 'sparkles' }
+      ];
+      services = await Service.insertMany(defaultServices);
+    }
     res.json(services);
   } catch (err) {
     res.status(500).json({ ok: false, msg: err.message });
@@ -247,7 +258,25 @@ router.post('/bookings', authMiddleware, async (req, res) => {
       workerPayout: quote.workerPayout,
       platformCommission: quote.platformCommission,
       otp,
-      status: 'Matched'
+      status: 'Matched',
+      customerLocation: req.body.customerLocation || {
+        address: req.body.address || 'Sea Breeze Apts, Bandra West, Mumbai',
+        lat: 19.0596,
+        lng: 72.8295,
+        landmark: 'Near Mehboob Studio',
+        instructions: 'Tower B, Flat 402, Ring bell twice',
+        phone: req.body.customerPhone || '9876543210'
+      },
+      labourLocation: {
+        address: 'Linking Road, Khar West, Mumbai',
+        lat: 19.0688,
+        lng: 72.8340,
+        lastUpdated: new Date(),
+        speedKmph: 22
+      },
+      etaMinutes: 12,
+      distanceKm: 1.8,
+      trackingStatus: 'En Route'
     });
 
     await newBooking.save();
@@ -267,6 +296,48 @@ router.post('/bookings', authMiddleware, async (req, res) => {
   }
 });
 
+router.get('/bookings/:id', authMiddleware, async (req, res) => {
+  try {
+    const booking = await Booking.findOne({ bookingId: req.params.id });
+    if (!booking) return res.status(404).json({ ok: false, msg: 'Booking not found' });
+    res.json(booking);
+  } catch (err) {
+    res.status(500).json({ ok: false, msg: err.message });
+  }
+});
+
+// Update live location, ETA, or tracking status for a booking
+router.put('/bookings/:id/location', authMiddleware, async (req, res) => {
+  try {
+    const { labourLocation, customerLocation, etaMinutes, distanceKm, trackingStatus, status } = req.body;
+    const booking = await Booking.findOne({ bookingId: req.params.id });
+    if (!booking) return res.status(404).json({ ok: false, msg: 'Booking not found' });
+
+    if (labourLocation) {
+      booking.labourLocation = {
+        ...booking.labourLocation?.toObject?.(),
+        ...labourLocation,
+        lastUpdated: new Date()
+      };
+    }
+    if (customerLocation) {
+      booking.customerLocation = {
+        ...booking.customerLocation?.toObject?.(),
+        ...customerLocation
+      };
+    }
+    if (etaMinutes !== undefined) booking.etaMinutes = etaMinutes;
+    if (distanceKm !== undefined) booking.distanceKm = distanceKm;
+    if (trackingStatus) booking.trackingStatus = trackingStatus;
+    if (status) booking.status = status;
+
+    await booking.save();
+    res.json({ ok: true, booking, msg: 'Location and ETA updated successfully' });
+  } catch (err) {
+    res.status(500).json({ ok: false, msg: err.message });
+  }
+});
+
 router.put('/bookings/:id/verify-otp', authMiddleware, async (req, res) => {
   try {
     const { otp } = req.body;
@@ -275,8 +346,86 @@ router.put('/bookings/:id/verify-otp', authMiddleware, async (req, res) => {
     if (booking.otp !== otp) return res.status(400).json({ ok: false, msg: 'Invalid verification OTP.' });
 
     booking.status = booking.status === 'Matched' ? 'In Progress' : 'Completed';
+    if (booking.status === 'In Progress') {
+      booking.trackingStatus = 'Arrived';
+      booking.etaMinutes = 0;
+      booking.distanceKm = 0;
+    }
     await booking.save();
     res.json({ ok: true, booking, msg: `Job status updated to ${booking.status}` });
+  } catch (err) {
+    res.status(500).json({ ok: false, msg: err.message });
+  }
+});
+
+// B2B Worksite and Fleet Tracking
+router.get('/b2b/sites/tracking', authMiddleware, async (req, res) => {
+  try {
+    const sites = [
+      {
+        siteId: 'SITE-MUM-01',
+        siteName: 'Metro Line 4 Casting Yard, Thane',
+        address: 'Ghodbunder Road, Near Kasarvadavali, Thane West',
+        lat: 19.2612,
+        lng: 72.9644,
+        geofenceRadiusMeters: 250,
+        supervisor: 'Rajesh Kulkarni (+91 98200 11223)',
+        totalAssigned: 15,
+        presentOnSite: 12,
+        inTransit: 3,
+        batches: [
+          {
+            batchId: 'BATCH-A1',
+            trade: 'Construction Helpers',
+            headcount: 12,
+            status: 'On Site (Geofence Verified)',
+            lat: 19.2615,
+            lng: 72.9641,
+            etaMinutes: 0,
+            distanceKm: 0,
+            driver: 'Direct Check-in (Turnstile Gate 2)'
+          },
+          {
+            batchId: 'BATCH-A2',
+            trade: 'Construction Helpers',
+            headcount: 3,
+            status: 'In Transit (Shuttle Bus 3)',
+            lat: 19.2485,
+            lng: 72.9750,
+            etaMinutes: 14,
+            distanceKm: 2.6,
+            driver: 'Mahesh Patil (+91 98331 44556)'
+          }
+        ]
+      },
+      {
+        siteId: 'SITE-MUM-02',
+        siteName: 'Navi Mumbai Commercial Complex',
+        address: 'Sector 15, Palm Beach Road, Vashi, Navi Mumbai',
+        lat: 19.0760,
+        lng: 73.0039,
+        geofenceRadiusMeters: 200,
+        supervisor: 'Anand Jadhav (+91 98199 88776)',
+        totalAssigned: 5,
+        presentOnSite: 5,
+        inTransit: 0,
+        batches: [
+          {
+            batchId: 'BATCH-B1',
+            trade: 'Licensed Electricians',
+            headcount: 5,
+            status: 'On Site (Electrical Substation B)',
+            lat: 19.0762,
+            lng: 73.0041,
+            etaMinutes: 0,
+            distanceKm: 0,
+            driver: 'On-site Supervisor Verified'
+          }
+        ]
+      }
+    ];
+
+    res.json({ ok: true, sites });
   } catch (err) {
     res.status(500).json({ ok: false, msg: err.message });
   }

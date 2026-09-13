@@ -1,30 +1,90 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { api } from '../services/api';
-import { Hammer, Wallet, LogOut, Radio, CheckCircle, Clock, ShieldCheck, Award } from 'lucide-react';
+import {
+  Hammer, Wallet, LogOut, Radio, CheckCircle, Clock, ShieldCheck,
+  Award, MapPin, Navigation, Phone, ExternalLink, Compass, ArrowRight,
+  Shield, Check, RefreshCw, Satellite
+} from 'lucide-react';
 import { Toast } from '../components/Toast';
+import { LiveLocationMap } from '../components/LiveLocationMap';
+import { useGeolocation } from '../hooks/useGeolocation';
+import { LocationPermissionBanner } from '../components/LocationPermissionBanner';
 
 export const LabourPortal = () => {
   const { user, logout } = useAuth();
 
-  const [activeTab, setActiveTab] = useState('radar'); // 'radar' | 'onboarding' | 'wallet'
+  const [activeTab, setActiveTab] = useState('radar'); // 'radar' | 'location' | 'onboarding' | 'wallet'
   const [isOnline, setIsOnline] = useState(true);
   const [radarSeconds, setRadarSeconds] = useState(30);
   const [incomingJob, setIncomingJob] = useState({
     id: 'REQ-9921',
-    customer: 'Sunita Rao',
-    address: 'Bandra West, Hill Road, Mumbai',
+    customer: 'Priya Sharma',
+    phone: '+91 98765 43210',
+    address: 'A-402, Sea Breeze Apts, Bandra West, Mumbai',
+    landmark: 'Near Mehboob Studio & Bandstand Promenade',
+    gateInstructions: 'Tower B, 4th Floor, Ring bell twice',
     distanceKm: 1.4,
+    etaMinutes: 6,
     service: 'Certified Electrician',
     scope: 'Fix tripped circuit breaker & living room switchboard',
     duration: '2 Hours',
-    estimatedPayout: 937.5
+    estimatedPayout: 937.5,
+    customerLat: 19.0596,
+    customerLng: 72.8295
   });
 
   const [jobOtpInput, setJobOtpInput] = useState('');
   const [jobStatus, setJobStatus] = useState('Matched'); // 'Matched' | 'In Progress' | 'Completed'
   const [walletBalance, setWalletBalance] = useState(user.walletBalance || 3250);
   const [toast, setToast] = useState(null);
+
+  // Labour's current location & telemetry
+  const [workerLocation, setWorkerLocation] = useState({
+    lat: 19.0688,
+    lng: 72.8340,
+    address: 'Linking Road Junction, Khar West, Mumbai',
+    name: user.name || 'Ramesh Kumar',
+    trade: user.category || 'Certified Electrician'
+  });
+
+  const [navDistanceKm, setNavDistanceKm] = useState(1.4);
+  const [navEtaMinutes, setNavEtaMinutes] = useState(6);
+  const [navStatus, setNavStatus] = useState('En Route to Customer');
+
+  // Real GPS tracking
+  const gps = useGeolocation();
+  const gpsBackoffRef = useRef(null);
+
+  // Sync real GPS coords into workerLocation whenever GPS updates
+  useEffect(() => {
+    if (gps.coords) {
+      setWorkerLocation(prev => ({
+        ...prev,
+        lat: gps.coords.lat,
+        lng: gps.coords.lng,
+        address: prev.address // keep last known address label
+      }));
+    }
+  }, [gps.coords]);
+
+  // Auto-start GPS watch when navigation tab is opened
+  useEffect(() => {
+    if (activeTab === 'location' && !gps.isWatching && gps.permissionState !== 'denied') {
+      gps.startWatching();
+    }
+  }, [activeTab]); // eslint-disable-line
+
+  // Customer destination details
+  const [customerDestination, setCustomerDestination] = useState({
+    name: 'Priya Sharma',
+    phone: '+91 98765 43210',
+    address: 'A-402, Sea Breeze Apts, Bandra West, Mumbai',
+    landmark: 'Near Mehboob Studio & Bandstand Promenade',
+    instructions: 'Tower B, 4th Floor, Ring bell twice',
+    lat: 19.0596,
+    lng: 72.8295
+  });
 
   // Radar Countdown Timer
   useEffect(() => {
@@ -36,8 +96,26 @@ export const LabourPortal = () => {
   }, [incomingJob, radarSeconds]);
 
   const handleAcceptJob = () => {
-    setToast({ title: 'Job Accepted!', body: `Navigating to ${incomingJob.address}. Ask customer for Start OTP.`, type: 'success' });
+    setCustomerDestination({
+      name: incomingJob.customer,
+      phone: incomingJob.phone,
+      address: incomingJob.address,
+      landmark: incomingJob.landmark,
+      instructions: incomingJob.gateInstructions,
+      lat: incomingJob.customerLat,
+      lng: incomingJob.customerLng
+    });
+    setNavDistanceKm(incomingJob.distanceKm);
+    setNavEtaMinutes(incomingJob.etaMinutes);
     setIncomingJob(null);
+    setActiveTab('location');
+    // Start GPS tracking as soon as a job is accepted
+    if (!gps.isWatching) gps.startWatching();
+    setToast({
+      title: 'Job Accepted! GPS Tracking Started',
+      body: `Live navigation opened to ${incomingJob.address}. Your location is now being shared with the customer.`,
+      type: 'success'
+    });
   };
 
   const handleDeclineJob = () => {
@@ -64,12 +142,47 @@ export const LabourPortal = () => {
   const handleWithdrawPayout = async () => {
     if (walletBalance <= 0) return;
     try {
-      await api.requestPayout(user.id, walletBalance);
+      await api.requestPayout(user.id || user._id, walletBalance);
       setWalletBalance(0);
       setToast({ title: 'Payout Transferred!', body: 'Amount sent to your registered Bank / UPI account.', type: 'success' });
     } catch (err) {
       setToast({ title: 'Payout Error', body: err.message, type: 'danger' });
     }
+  };
+
+  const handleMarkArrived = () => {
+    setNavDistanceKm(0);
+    setNavEtaMinutes(0);
+    setNavStatus('Arrived at Customer Premises');
+    setWorkerLocation(prev => ({
+      ...prev,
+      lat: customerDestination.lat + 0.0001,
+      lng: customerDestination.lng + 0.0001,
+      address: 'Arrived at Sea Breeze Apts'
+    }));
+    setToast({
+      title: 'Arrival Logged!',
+      body: 'Customer notified that you have reached their building. Ask for their 4-digit Start Code.',
+      type: 'success'
+    });
+  };
+
+  const handleSimulateGPSMove = () => {
+    if (navEtaMinutes <= 1) {
+      handleMarkArrived();
+      return;
+    }
+    const newEta = Math.max(1, navEtaMinutes - 2);
+    const newDist = Math.max(0.2, (navDistanceKm - 0.4).toFixed(1));
+    setNavEtaMinutes(newEta);
+    setNavDistanceKm(newDist);
+    setWorkerLocation(prev => ({
+      ...prev,
+      lat: prev.lat + (customerDestination.lat - prev.lat) * 0.35,
+      lng: prev.lng + (customerDestination.lng - prev.lng) * 0.35,
+      address: newEta <= 3 ? 'Turner Road, Bandra West' : 'Perry Cross Road Junction'
+    }));
+    setToast({ title: 'GPS Updated', body: `Now ${newEta} mins (${newDist} km) from customer.`, type: 'info' });
   };
 
   return (
@@ -131,33 +244,78 @@ export const LabourPortal = () => {
       {/* Main Content Area */}
       <main style={{ maxWidth: '1400px', margin: '0 auto', padding: '2rem 1.5rem', width: '100%', flex: 1 }}>
 
-        {/* Worker Tab Navigation */}
-        <div style={{ display: 'flex', gap: '0.75rem', marginBottom: '1.5rem' }}>
+        {/* Worker Tab Navigation (Includes new Location & Navigation Section) */}
+        <div style={{ display: 'flex', gap: '0.75rem', marginBottom: '1.75rem', flexWrap: 'wrap' }}>
           <button
             onClick={() => setActiveTab('radar')}
             className={`pill-btn ${activeTab === 'radar' ? 'active' : ''}`}
-            style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}
+            style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', padding: '0.55rem 1.15rem' }}
           >
             <Radio size={14} /> Available Job Radar
           </button>
           <button
+            onClick={() => setActiveTab('location')}
+            className={`pill-btn ${activeTab === 'location' ? 'active' : ''}`}
+            style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', padding: '0.55rem 1.15rem', position: 'relative' }}
+          >
+            <Navigation size={14} style={{ color: '#34d399' }} />
+            <span>Customer Location &amp; Navigation</span>
+            <span style={{
+              width: '8px', height: '8px', borderRadius: '50%', background: '#10b981',
+              boxShadow: '0 0 8px #10b981'
+            }}></span>
+          </button>
+          <button
             onClick={() => setActiveTab('onboarding')}
             className={`pill-btn ${activeTab === 'onboarding' ? 'active' : ''}`}
-            style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}
+            style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', padding: '0.55rem 1.15rem' }}
           >
             <CheckCircle size={14} /> 7-Step Onboarding Status
           </button>
           <button
             onClick={() => setActiveTab('wallet')}
             className={`pill-btn ${activeTab === 'wallet' ? 'active' : ''}`}
-            style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}
+            style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', padding: '0.55rem 1.15rem' }}
           >
             <Wallet size={14} /> Escrow Earnings &amp; Payouts
           </button>
         </div>
 
-        {/* TAB 1: RADAR & COCKPIT */}
+        {/* ══════════════════════════════════════════════════════════
+            TAB 1: RADAR & ACTIVE JOB COCKPIT
+            ══════════════════════════════════════════════════════════ */}
         {activeTab === 'radar' && (
+          gps.permissionState !== 'granted' && !gps.coords ? (
+            <div className="glass-card" style={{ padding: '3rem 2rem', textAlign: 'center', maxWidth: '680px', margin: '1.5rem auto', border: '1px solid rgba(16, 185, 129, 0.4)', background: 'linear-gradient(135deg, rgba(5, 150, 105, 0.15), rgba(17, 24, 39, 0.95))', borderRadius: '20px' }}>
+              <div style={{ width: '68px', height: '68px', borderRadius: '50%', background: 'rgba(16, 185, 129, 0.2)', border: '2px solid #10b981', display: 'grid', placeItems: 'center', margin: '0 auto 1.25rem', color: '#34d399', boxShadow: '0 0 25px rgba(16, 185, 129, 0.35)' }}>
+                <Navigation size={32} />
+              </div>
+              <span style={{ fontSize: '0.78rem', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.08em', color: '#34d399', background: 'rgba(16, 185, 129, 0.12)', padding: '0.25rem 0.8rem', borderRadius: '20px', border: '1px solid rgba(16, 185, 129, 0.3)' }}>
+                Mandatory Worker Requirement
+              </span>
+              <h2 style={{ fontFamily: 'var(--font-heading)', fontSize: '1.6rem', fontWeight: '800', color: '#fff', marginTop: '0.85rem', marginBottom: '0.5rem' }}>
+                Location Permission Required to View Bookings
+              </h2>
+              <p style={{ color: 'var(--text-muted)', fontSize: '0.92rem', lineHeight: '1.6', maxWidth: '520px', margin: '0 auto 1.75rem' }}>
+                As a registered field service professional on LabourLink, your real-time location is mandatory. The dispatch radar uses your coordinates to match you with nearby customers and provide live travel navigation.
+              </p>
+
+              {gps.permissionState === 'denied' && (
+                <div style={{ background: 'rgba(239, 68, 68, 0.15)', border: '1px solid rgba(239, 68, 68, 0.35)', borderRadius: '12px', padding: '1rem', color: '#fca5a5', fontSize: '0.85rem', maxWidth: '480px', margin: '0 auto 1.25rem', textAlign: 'left' }}>
+                  ⚠️ <strong>Location Access Blocked in Browser:</strong><br />
+                  Please click the permissions/lock icon in your browser's address bar, enable Location for this site, and click the button below or refresh.
+                </div>
+              )}
+
+              <button
+                onClick={gps.startWatching}
+                className="btn btn-primary"
+                style={{ padding: '0.85rem 2.25rem', fontSize: '1rem', fontWeight: '800', background: '#059669', display: 'inline-flex', alignItems: 'center', gap: '0.6rem', boxShadow: '0 4px 15px rgba(5, 150, 105, 0.4)' }}
+              >
+                <Navigation size={18} /> Enable Location to Receive Upcoming Bookings
+              </button>
+            </div>
+          ) : (
           <div style={{ display: 'grid', gridTemplateColumns: '7fr 5fr', gap: '1.5rem' }}>
             {/* Incoming Dispatch Radar */}
             <div className="glass-card" style={{ padding: '1.75rem' }}>
@@ -183,11 +341,14 @@ export const LabourPortal = () => {
                     <span style={{ background: 'rgba(16,185,129,0.15)', color: '#34d399', fontSize: '0.72rem', fontWeight: '700', padding: '0.2rem 0.6rem', borderRadius: '20px' }}>
                       {incomingJob.service}
                     </span>
-                    <span style={{ color: 'var(--text-muted)', fontSize: '0.8rem' }}>{incomingJob.distanceKm} km away</span>
+                    <span style={{ color: '#60a5fa', fontSize: '0.8rem', fontWeight: '700', display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
+                      <MapPin size={13} /> {incomingJob.distanceKm} km to customer (~{incomingJob.etaMinutes} mins)
+                    </span>
                   </div>
 
                   <h3 style={{ fontSize: '1.1rem', fontWeight: '800', color: '#fff', marginBottom: '0.25rem' }}>{incomingJob.customer}</h3>
-                  <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginBottom: '1rem' }}>{incomingJob.address}</p>
+                  <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginBottom: '0.5rem' }}>{incomingJob.address}</p>
+                  <p style={{ fontSize: '0.78rem', color: '#93c5fd', marginBottom: '1rem' }}>Landmark: {incomingJob.landmark}</p>
 
                   <div style={{ display: 'flex', justifyContent: 'space-between', padding: '0.75rem 0', borderTop: '1px solid var(--border-glass)', borderBottom: '1px solid var(--border-glass)', marginBottom: '1.25rem' }}>
                     <div>
@@ -204,25 +365,41 @@ export const LabourPortal = () => {
                     <button onClick={handleDeclineJob} className="btn btn-glass" style={{ padding: '0.75rem' }}>
                       Pass Job
                     </button>
-                    <button onClick={handleAcceptJob} className="btn btn-primary" style={{ background: '#059669', padding: '0.75rem', fontWeight: '700' }}>
-                      Accept Job &amp; Navigate
+                    <button onClick={handleAcceptJob} className="btn btn-primary" style={{ background: '#059669', padding: '0.75rem', fontWeight: '700', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.4rem' }}>
+                      <Navigation size={16} /> Accept Job &amp; Navigate to Customer
                     </button>
                   </div>
                 </div>
               ) : (
-                <div style={{ textAlign: 'center', padding: '3rem 1.5rem', background: 'var(--bg-surface-elevated)', borderRadius: 'var(--radius-md)' }}>
+                <div style={{ textAlign: 'center', padding: '2.5rem 1.5rem', background: 'var(--bg-surface-elevated)', borderRadius: 'var(--radius-md)' }}>
                   <Radio size={36} style={{ color: '#10b981', opacity: 0.6, marginBottom: '0.75rem' }} />
-                  <p style={{ color: '#fff', fontWeight: '600' }}>Listening for nearby dispatches...</p>
+                  <p style={{ color: '#fff', fontWeight: '600' }}>Listening for nearby dispatches in Bandra/Khar zone...</p>
                   <p style={{ fontSize: '0.82rem', color: 'var(--text-muted)', marginTop: '0.25rem' }}>Stay within service radius to maintain 100% distance score.</p>
+                  <button
+                    onClick={() => setActiveTab('location')}
+                    className="btn btn-glass"
+                    style={{ marginTop: '1.25rem', padding: '0.6rem 1.25rem', fontSize: '0.82rem', display: 'inline-flex', alignItems: 'center', gap: '0.4rem' }}
+                  >
+                    <MapPin size={14} /> Open Customer Location &amp; Navigation Map <ArrowRight size={14} />
+                  </button>
                 </div>
               )}
             </div>
 
             {/* Active Job Cockpit */}
             <div className="glass-card" style={{ padding: '1.75rem' }}>
-              <h3 style={{ fontFamily: 'var(--font-heading)', fontSize: '1.15rem', fontWeight: '800', color: '#fff', marginBottom: '1rem' }}>
-                Active Job Cockpit
-              </h3>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1rem' }}>
+                <h3 style={{ fontFamily: 'var(--font-heading)', fontSize: '1.15rem', fontWeight: '800', color: '#fff' }}>
+                  Active Job Cockpit
+                </h3>
+                <button
+                  onClick={() => setActiveTab('location')}
+                  className="btn btn-glass"
+                  style={{ padding: '0.35rem 0.75rem', fontSize: '0.75rem', display: 'flex', alignItems: 'center', gap: '0.35rem' }}
+                >
+                  <Navigation size={13} /> View Map
+                </button>
+              </div>
 
               {jobStatus === 'Matched' ? (
                 <div>
@@ -265,9 +442,207 @@ export const LabourPortal = () => {
               )}
             </div>
           </div>
+          )
         )}
 
-        {/* TAB 2: 7-STEP ONBOARDING */}
+        {/* ══════════════════════════════════════════════════════════
+            TAB 2: CUSTOMER LOCATION & NAVIGATION (NEW SECTION!)
+            ══════════════════════════════════════════════════════════ */}
+        {activeTab === 'location' && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+
+            {/* GPS Permission Banner */}
+            <LocationPermissionBanner
+              role="labour"
+              permissionState={gps.permissionState}
+              onAllow={gps.startWatching}
+              error={gps.error}
+            />
+
+            {/* GPS Status Pill */}
+            {gps.isWatching && gps.coords && (
+              <div style={{
+                display: 'inline-flex', alignItems: 'center', gap: '0.5rem',
+                background: 'rgba(16, 185, 129, 0.1)', border: '1px solid rgba(16, 185, 129, 0.3)',
+                borderRadius: '20px', padding: '0.35rem 0.9rem', fontSize: '0.78rem',
+                color: '#34d399', fontWeight: '700', alignSelf: 'flex-start'
+              }}>
+                <span style={{ width: '7px', height: '7px', borderRadius: '50%', background: '#10b981', boxShadow: '0 0 6px #10b981' }}></span>
+                Live GPS Active — Accuracy: ±{Math.round(gps.coords.accuracy)}m &nbsp;|&nbsp;
+                {gps.coords.lat.toFixed(5)}, {gps.coords.lng.toFixed(5)}
+              </div>
+            )}
+
+            {/* Navigation Status Header */}
+            <div className="glass-card" style={{ padding: '1.5rem', background: 'linear-gradient(135deg, rgba(5, 150, 105, 0.2), rgba(17, 24, 39, 0.95))', border: '1px solid rgba(16, 185, 129, 0.3)' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
+                <div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.35rem' }}>
+                    <span style={{ width: '10px', height: '10px', borderRadius: '50%', background: '#10b981', boxShadow: '0 0 10px #10b981' }}></span>
+                    <span style={{ fontSize: '0.78rem', fontWeight: '700', textTransform: 'uppercase', color: '#34d399', letterSpacing: '0.05em' }}>
+                      Turn-by-Turn GPS Navigation
+                    </span>
+                  </div>
+                  <h2 style={{ fontFamily: 'var(--font-heading)', fontSize: '1.5rem', fontWeight: '800', color: '#fff' }}>
+                    {navDistanceKm > 0 ? (
+                      <>Destination is <span style={{ color: '#34d399' }}>{navDistanceKm} km</span> (~{navEtaMinutes} mins away)</>
+                    ) : (
+                      <span style={{ color: '#34d399' }}>You Have Arrived at Customer Premises</span>
+                    )}
+                  </h2>
+                  <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>
+                    Current Location: <strong>{workerLocation.address}</strong>
+                  </p>
+                </div>
+
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
+                  {gps.permissionState !== 'granted' ? (
+                    <button
+                      onClick={gps.startWatching}
+                      className="btn btn-primary"
+                      style={{ background: '#059669', display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.82rem', padding: '0.6rem 1rem' }}
+                    >
+                      <Satellite size={14} /> Enable GPS
+                    </button>
+                  ) : (
+                    <button
+                      onClick={handleSimulateGPSMove}
+                      className="btn btn-glass"
+                      style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.82rem', padding: '0.6rem 1rem' }}
+                      title="Simulate movement (GPS auto-updates when device moves)"
+                    >
+                      <RefreshCw size={14} /> Simulate Move {gps.isWatching ? '(GPS Active)' : ''}
+                    </button>
+                  )}
+
+                  <button
+                    onClick={handleMarkArrived}
+                    className="btn btn-primary"
+                    style={{ background: '#059669', display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.82rem', padding: '0.6rem 1rem' }}
+                  >
+                    <Check size={15} /> I Have Arrived
+                  </button>
+
+                  <a
+                    href={`https://www.google.com/maps/dir/?api=1&origin=${workerLocation.lat},${workerLocation.lng}&destination=${customerDestination.lat},${customerDestination.lng}`}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="btn btn-glass"
+                    style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.82rem', padding: '0.6rem 1rem' }}
+                  >
+                    <ExternalLink size={14} /> Google Maps
+                  </a>
+                </div>
+              </div>
+            </div>
+
+            {/* Map & Turn-by-Turn Guide Grid */}
+            <div style={{ display: 'grid', gridTemplateColumns: '8fr 4fr', gap: '1.5rem' }}>
+
+              {/* Interactive Navigation Map */}
+              <div className="glass-card" style={{ padding: '1.25rem' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontWeight: '700', color: '#fff', fontSize: '0.95rem' }}>
+                    <Compass size={17} style={{ color: '#10b981' }} /> Live Customer Route Map
+                  </div>
+                  <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                    Your Location (Green) ➔ Customer Destination (Blue)
+                  </span>
+                </div>
+
+                <LiveLocationMap
+                  customerLoc={customerDestination}
+                  labourLoc={workerLocation}
+                  showRoute={true}
+                  height="460px"
+                />
+
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '1rem', paddingTop: '0.75rem', borderTop: '1px solid var(--border-glass)', fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                    <MapPin size={14} style={{ color: '#10b981' }} />
+                    <span>Customer Address: <strong>{customerDestination.address}</strong></span>
+                  </div>
+                  <span style={{ color: '#60a5fa', fontWeight: '600' }}>GPS: {customerDestination.lat}, {customerDestination.lng}</span>
+                </div>
+              </div>
+
+              {/* Right Column: Customer Details & Turn Steps */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+
+                {/* Customer Contact & Destination Card */}
+                <div className="glass-card" style={{ padding: '1.5rem' }}>
+                  <div style={{ fontSize: '0.72rem', textTransform: 'uppercase', color: 'var(--text-muted)', fontWeight: '700', marginBottom: '0.75rem' }}>
+                    Customer Contact &amp; Premises
+                  </div>
+
+                  <h3 style={{ color: '#fff', fontSize: '1.15rem', fontWeight: '800', marginBottom: '0.25rem' }}>
+                    {customerDestination.name}
+                  </h3>
+                  <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginBottom: '0.5rem' }}>
+                    {customerDestination.address}
+                  </p>
+
+                  <div style={{ background: 'rgba(59, 130, 246, 0.1)', border: '1px solid rgba(59, 130, 246, 0.25)', borderRadius: 'var(--radius-sm)', padding: '0.65rem 0.85rem', marginBottom: '0.75rem' }}>
+                    <div style={{ fontSize: '0.72rem', color: '#93c5fd', fontWeight: '700', textTransform: 'uppercase' }}>Landmark</div>
+                    <div style={{ fontSize: '0.82rem', color: '#fff' }}>{customerDestination.landmark}</div>
+                  </div>
+
+                  <div style={{ background: 'rgba(16, 185, 129, 0.1)', border: '1px solid rgba(16, 185, 129, 0.25)', borderRadius: 'var(--radius-sm)', padding: '0.65rem 0.85rem', marginBottom: '1.25rem' }}>
+                    <div style={{ fontSize: '0.72rem', color: '#6ee7b7', fontWeight: '700', textTransform: 'uppercase' }}>Gate / Entry Notes</div>
+                    <div style={{ fontSize: '0.82rem', color: '#fff' }}>{customerDestination.instructions}</div>
+                  </div>
+
+                  <a
+                    href={`tel:${customerDestination.phone}`}
+                    className="btn btn-primary"
+                    style={{ width: '100%', padding: '0.75rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem', background: '#059669', fontSize: '0.88rem', fontWeight: '700' }}
+                  >
+                    <Phone size={15} /> Call Customer ({customerDestination.phone})
+                  </a>
+                </div>
+
+                {/* Step-by-Step Route Hints */}
+                <div className="glass-card" style={{ padding: '1.5rem' }}>
+                  <div style={{ fontSize: '0.72rem', textTransform: 'uppercase', color: 'var(--text-muted)', fontWeight: '700', marginBottom: '0.75rem' }}>
+                    Turn-by-Turn Route Guidance
+                  </div>
+
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                    {[
+                      { step: '1', instruction: 'Head north on Linking Road toward Turner Road', distance: '300m' },
+                      { step: '2', instruction: 'Turn left onto Turner Road toward Perry Cross Road', distance: '600m' },
+                      { step: '3', instruction: 'Continue straight onto Hill Road past Mehboob Studio', distance: '400m' },
+                      { step: '4', instruction: 'Turn right into Sea Breeze Apts main gate', distance: '100m' }
+                    ].map((item, idx) => (
+                      <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: '0.65rem', fontSize: '0.8rem' }}>
+                        <div style={{ width: '22px', height: '22px', borderRadius: '50%', background: 'rgba(16, 185, 129, 0.15)', color: '#34d399', fontWeight: '700', display: 'grid', placeItems: 'center', flexShrink: 0 }}>
+                          {item.step}
+                        </div>
+                        <div style={{ flex: 1, color: '#fff' }}>{item.instruction}</div>
+                        <span style={{ color: 'var(--text-muted)', fontFamily: 'var(--font-mono)', fontSize: '0.75rem' }}>{item.distance}</span>
+                      </div>
+                    ))}
+                  </div>
+
+                  <div style={{ marginTop: '1.25rem', paddingTop: '0.75rem', borderTop: '1px solid var(--border-glass)', textAlign: 'center' }}>
+                    <button
+                      onClick={() => setActiveTab('radar')}
+                      className="btn btn-glass"
+                      style={{ width: '100%', padding: '0.65rem', fontSize: '0.82rem', fontWeight: '600' }}
+                    >
+                      Arrived? Enter Start Code in Cockpit ➔
+                    </button>
+                  </div>
+                </div>
+
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ══════════════════════════════════════════════════════════
+            TAB 3: 7-STEP ONBOARDING
+            ══════════════════════════════════════════════════════════ */}
         {activeTab === 'onboarding' && (
           <div className="glass-card" style={{ padding: '2rem', maxWidth: '800px', margin: '0 auto' }}>
             <h2 style={{ fontFamily: 'var(--font-heading)', fontSize: '1.35rem', fontWeight: '800', color: '#fff', marginBottom: '0.5rem' }}>
@@ -303,7 +678,9 @@ export const LabourPortal = () => {
           </div>
         )}
 
-        {/* TAB 3: ESCROW EARNINGS & WALLET */}
+        {/* ══════════════════════════════════════════════════════════
+            TAB 4: ESCROW EARNINGS & WALLET
+            ══════════════════════════════════════════════════════════ */}
         {activeTab === 'wallet' && (
           <div className="glass-card" style={{ padding: '2rem', maxWidth: '800px', margin: '0 auto' }}>
             <h2 style={{ fontFamily: 'var(--font-heading)', fontSize: '1.35rem', fontWeight: '800', color: '#fff', marginBottom: '0.5rem' }}>
