@@ -4,6 +4,14 @@ const connectDB = require('../backend/config/db');
 const app = require('../backend/server');
 
 module.exports = async (req, res) => {
-  await connectDB();
+  try {
+    await connectDB();
+  } catch (err) {
+    return res.status(500).json({
+      ok: false,
+      msg: `Database connection error: ${err.message}`,
+      hint: 'Please check MONGO_URI in your Vercel Project Settings > Environment Variables'
+    });
+  }
   return app(req, res);
 };
