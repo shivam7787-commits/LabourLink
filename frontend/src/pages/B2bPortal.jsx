@@ -10,6 +10,7 @@ import { Toast } from '../components/Toast';
 import { LiveLocationMap } from '../components/LiveLocationMap';
 import { useGeolocation } from '../hooks/useGeolocation';
 import { LocationPermissionBanner } from '../components/LocationPermissionBanner';
+import { getRealtimeLocation, searchAddress } from '../services/geoapifyService';
 
 export const B2bPortal = () => {
   const { user, logout } = useAuth();
@@ -98,6 +99,37 @@ export const B2bPortal = () => {
   ]);
 
   const [selectedSiteId, setSelectedSiteId] = useState('SITE-MUM-01');
+  const [siteSuggestions, setSiteSuggestions] = useState([]);
+  const [isLocatingManager, setIsLocatingManager] = useState(false);
+
+  const handleDetectManagerLocation = async () => {
+    setIsLocatingManager(true);
+    try {
+      const loc = await getRealtimeLocation();
+      if (loc) {
+        setSitesData(prev => prev.map(s => {
+          if (s.siteId === selectedSiteId) {
+            return {
+              ...s,
+              lat: parseFloat(loc.lat.toFixed(5)),
+              lng: parseFloat(loc.lng.toFixed(5)),
+              address: loc.formatted
+            };
+          }
+          return s;
+        }));
+        setToast({
+          title: 'Worksite Calibrated via Geoapify',
+          body: `Real-time position: ${loc.formatted} (${loc.source.toUpperCase()})`,
+          type: 'success'
+        });
+      }
+    } catch (err) {
+      setToast({ title: 'Location Error', body: err.message, type: 'danger' });
+    } finally {
+      setIsLocatingManager(false);
+    }
+  };
 
   useEffect(() => {
     async function loadTracking() {
@@ -437,6 +469,93 @@ export const B2bPortal = () => {
                   <span style={{ fontSize: '0.75rem', color: '#c084fc', background: 'rgba(168, 85, 247, 0.15)', padding: '0.2rem 0.6rem', borderRadius: '12px' }}>
                     Geofence: {selectedSite.geofenceRadiusMeters}m Active
                   </span>
+                </div>
+
+                {/* Geoapify Worksite Search & Manager Location Toolbar */}
+                <div style={{ display: 'flex', gap: '0.75rem', marginBottom: '0.85rem', position: 'relative' }}>
+                  <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: '0.5rem', background: 'var(--bg-surface-elevated)', border: '1px solid var(--border-glass)', borderRadius: 'var(--radius-sm)', padding: '0.5rem 0.75rem' }}>
+                    <MapPin size={15} style={{ color: '#a855f7', flexShrink: 0 }} />
+                    <input
+                      type="text"
+                      placeholder="Search project worksite address via Geoapify..."
+                      style={{ width: '100%', background: 'transparent', border: 'none', color: '#fff', fontSize: '0.82rem', outline: 'none' }}
+                      onChange={async (e) => {
+                        const val = e.target.value;
+                        if (val.trim().length >= 3) {
+                          const hits = await searchAddress(val, { limit: 4 });
+                          setSiteSuggestions(hits);
+                        } else {
+                          setSiteSuggestions([]);
+                        }
+                      }}
+                    />
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={handleDetectManagerLocation}
+                    disabled={isLocatingManager}
+                    className="btn btn-glass"
+                    style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.78rem', padding: '0.5rem 0.85rem', whiteSpace: 'nowrap' }}
+                    title="Calibrate worksite using your live device GPS / Geoapify location"
+                  >
+                    <Navigation size={13} className={isLocatingManager ? 'spin' : ''} />
+                    {isLocatingManager ? 'Locating...' : 'Detect Manager Live Location'}
+                  </button>
+
+                  {siteSuggestions.length > 0 && (
+                    <div style={{
+                      position: 'absolute',
+                      top: '100%',
+                      left: 0,
+                      right: 0,
+                      zIndex: 600,
+                      background: 'rgba(15, 23, 42, 0.98)',
+                      backdropFilter: 'blur(12px)',
+                      border: '1px solid rgba(168, 85, 247, 0.4)',
+                      borderRadius: '8px',
+                      marginTop: '4px',
+                      overflow: 'hidden',
+                      boxShadow: '0 10px 25px rgba(0,0,0,0.6)'
+                    }}>
+                      {siteSuggestions.map((sugg) => (
+                        <div
+                          key={sugg.id}
+                          onClick={() => {
+                            setSitesData(prev => prev.map(s => {
+                              if (s.siteId === selectedSiteId) {
+                                return {
+                                  ...s,
+                                  lat: parseFloat(sugg.lat.toFixed(5)),
+                                  lng: parseFloat(sugg.lng.toFixed(5)),
+                                  address: sugg.label
+                                };
+                              }
+                              return s;
+                            }));
+                            setSiteSuggestions([]);
+                            setToast({
+                              title: 'Worksite Re-pinned via Geoapify',
+                              body: `${sugg.label} (${sugg.lat.toFixed(4)}, ${sugg.lng.toFixed(4)})`,
+                              type: 'success'
+                            });
+                          }}
+                          style={{
+                            padding: '0.65rem 0.85rem',
+                            borderBottom: '1px solid rgba(255, 255, 255, 0.07)',
+                            cursor: 'pointer',
+                            fontSize: '0.82rem',
+                            color: '#fff'
+                          }}
+                          onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(168, 85, 247, 0.2)'}
+                          onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
+                        >
+                          <div style={{ fontWeight: '600', color: '#c084fc' }}>{sugg.name}</div>
+                          <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>{sugg.label}</div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
 
                 <LiveLocationMap

@@ -10,6 +10,7 @@ import { Toast } from '../components/Toast';
 import { LiveLocationMap } from '../components/LiveLocationMap';
 import { useGeolocation } from '../hooks/useGeolocation';
 import { LocationPermissionBanner } from '../components/LocationPermissionBanner';
+import { getRealtimeLocation, searchAddress, reverseGeocode } from '../services/geoapifyService';
 
 export const CustomerPortal = () => {
   const { user, logout } = useAuth();
@@ -36,31 +37,58 @@ export const CustomerPortal = () => {
   // Booking location permission prompt modal
   const [showBookingLocationPrompt, setShowBookingLocationPrompt] = useState(false);
 
-  // Live Location & ETA State
-  const [etaMinutes, setEtaMinutes] = useState(8);
-  const [distanceKm, setDistanceKm] = useState(1.4);
-  const [trackingStatus, setTrackingStatus] = useState('En Route on SV Road');
-  const [gateNotes, setGateNotes] = useState('Tower B, 4th Floor, Ring bell twice');
+  // Active booking if any
+  const activeBooking = bookings.find(b => b.status === 'In Progress' || b.status === 'Matched');
 
-  // Coordinates
+  // Live Location & ETA State (null when no active booking)
+  const [etaMinutes, setEtaMinutes] = useState(null);
+  const [distanceKm, setDistanceKm] = useState(null);
+  const [trackingStatus, setTrackingStatus] = useState(null);
+  const [gateNotes, setGateNotes] = useState('');
+
+  // Coordinates (defaults to null or user address, populated by Geoapify real-time)
   const [customerLocation, setCustomerLocation] = useState({
-    lat: 19.0596,
-    lng: 72.8295,
-    address: user.address || 'A-402, Sea Breeze Apts, Bandra West, Mumbai',
-    name: user.name || 'Priya Sharma',
-    landmark: 'Near Mehboob Studio'
+    lat: null,
+    lng: null,
+    address: user.address || '',
+    name: user.name || 'Customer',
+    landmark: ''
   });
 
-  const [labourLocation, setLabourLocation] = useState({
-    lat: 19.0688,
-    lng: 72.8340,
-    address: 'Linking Road, Khar West, Mumbai',
-    name: 'Ramesh Kumar',
-    trade: 'Certified Electrician'
-  });
+  // Assigned labour worker location (only populated if an active booking exists)
+  const [labourLocation, setLabourLocation] = useState(null);
+
+  // Address search autocomplete state
+  const [addressSuggestions, setAddressSuggestions] = useState([]);
+  const [isLocating, setIsLocating] = useState(false);
 
   // Real browser GPS for customer home pin / current location
   const gps = useGeolocation();
+
+  // Auto-detect Shivam's real-time location via Geoapify & GPS on mount
+  useEffect(() => {
+    async function initUserLocation() {
+      try {
+        setIsLocating(true);
+        const loc = await getRealtimeLocation();
+        if (loc) {
+          setCustomerLocation(prev => ({
+            ...prev,
+            lat: loc.lat,
+            lng: loc.lng,
+            address: prev.address && !prev.address.includes('Mumbai') ? prev.address : loc.formatted,
+            name: user.name || 'Shivam',
+            landmark: loc.landmark || prev.landmark
+          }));
+        }
+      } catch (err) {
+        console.warn('[CustomerPortal] Auto location init:', err);
+      } finally {
+        setIsLocating(false);
+      }
+    }
+    initUserLocation();
+  }, [user.name]);
 
   // Sync real GPS coords into customerLocation if available
   useEffect(() => {
@@ -89,28 +117,35 @@ export const CustomerPortal = () => {
         if (active) {
           if (active.customerLocation) {
             setCustomerLocation({
-              lat: active.customerLocation.lat || 19.0596,
-              lng: active.customerLocation.lng || 72.8295,
-              address: active.customerLocation.address || 'A-402, Sea Breeze Apts, Bandra West, Mumbai',
+              lat: active.customerLocation.lat,
+              lng: active.customerLocation.lng,
+              address: active.customerLocation.address,
               name: active.customerName || user.name,
-              landmark: active.customerLocation.landmark || 'Near Mehboob Studio'
+              landmark: active.customerLocation.landmark || ''
             });
             if (active.customerLocation.instructions) {
               setGateNotes(active.customerLocation.instructions);
             }
           }
-          if (active.labourLocation) {
+          if (active.labourLocation && active.labourName) {
             setLabourLocation({
-              lat: active.labourLocation.lat || 19.0688,
-              lng: active.labourLocation.lng || 72.8340,
-              address: active.labourLocation.address || 'Linking Road, Khar West, Mumbai',
-              name: active.labourName || 'Ramesh Kumar',
-              trade: active.serviceName || 'Certified Electrician'
+              lat: active.labourLocation.lat,
+              lng: active.labourLocation.lng,
+              address: active.labourLocation.address || 'In transit',
+              name: active.labourName,
+              trade: active.serviceName || 'Verified Professional'
             });
+          } else {
+            setLabourLocation(null);
           }
           if (active.etaMinutes !== undefined) setEtaMinutes(active.etaMinutes);
           if (active.distanceKm !== undefined) setDistanceKm(active.distanceKm);
           if (active.trackingStatus) setTrackingStatus(active.trackingStatus);
+        } else {
+          setLabourLocation(null);
+          setEtaMinutes(null);
+          setDistanceKm(null);
+          setTrackingStatus(null);
         }
       } catch (err) {
         console.error('Error loading initial data:', err);
@@ -222,6 +257,8 @@ export const CustomerPortal = () => {
 
   // Simulate worker movement closer to customer
   const handleSimulateMovement = () => {
+    if (!labourLocation) return;
+    const workerName = activeBooking?.labourName || 'Your assigned professional';
     if (etaMinutes <= 1) {
       setEtaMinutes(0);
       setDistanceKm(0);
@@ -230,14 +267,14 @@ export const CustomerPortal = () => {
         ...prev,
         lat: customerLocation.lat + 0.0002,
         lng: customerLocation.lng + 0.0002,
-        address: 'Building Main Gate, Bandra West'
+        address: 'Customer Gate'
       }));
-      setToast({ title: 'Worker Has Arrived!', body: 'Ramesh Kumar is at your building entrance. Please share your Start Code.', type: 'success' });
+      setToast({ title: 'Worker Has Arrived!', body: `${workerName} is at your building entrance. Please share your Start Code.`, type: 'success' });
       return;
     }
 
     const nextEta = Math.max(1, etaMinutes - 2);
-    const nextDist = Math.max(0.2, (distanceKm - 0.35).toFixed(1));
+    const nextDist = Math.max(0.2, parseFloat((distanceKm - 0.35).toFixed(1)));
     setEtaMinutes(nextEta);
     setDistanceKm(nextDist);
 
@@ -246,13 +283,11 @@ export const CustomerPortal = () => {
       ...prev,
       lat: prev.lat + (customerLocation.lat - prev.lat) * 0.3,
       lng: prev.lng + (customerLocation.lng - prev.lng) * 0.3,
-      address: nextEta <= 3 ? 'Turner Road Junction, Bandra West' : 'Hill Road, Near Mehboob Studio'
+      address: nextEta <= 3 ? 'Approaching Building Gate' : prev.address
     }));
-    setTrackingStatus(nextEta <= 3 ? 'Approaching Society Gate' : 'Turning onto Hill Road');
+    setTrackingStatus(nextEta <= 3 ? 'Approaching Building Gate' : 'En Route');
     setToast({ title: 'Live Update', body: `Worker is now ${nextEta} mins (${nextDist} km) away.`, type: 'info' });
   };
-
-  const activeBooking = bookings.find(b => b.status === 'In Progress' || b.status === 'Matched') || bookings[0];
 
   return (
     <div style={{ minHeight: '100vh', background: 'var(--bg-base)', display: 'flex', flexDirection: 'column' }}>
@@ -400,48 +435,127 @@ export const CustomerPortal = () => {
                   </div>
                 </div>
 
-                {/* Destination Location Preview */}
-                <div style={{ marginBottom: '1.25rem' }}>
+                {/* Destination Location with Geoapify Search & Real-Time Detection */}
+                <div style={{ marginBottom: '1.25rem', position: 'relative' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.4rem' }}>
                     <label style={{ fontSize: '0.76rem', fontWeight: '600', color: 'var(--text-muted)', textTransform: 'uppercase' }}>
                       Service Destination Address
                     </label>
                     <button
                       type="button"
+                      disabled={isLocating}
                       onClick={async () => {
                         try {
-                          gps.startWatching();
-                          const pos = await gps.getOnce();
-                          setCustomerLocation(prev => ({
-                            ...prev,
-                            lat: parseFloat(pos.lat.toFixed(5)),
-                            lng: parseFloat(pos.lng.toFixed(5)),
-                            address: prev.address.includes('GPS') ? prev.address : `${prev.address} (GPS: ${pos.lat.toFixed(4)}, ${pos.lng.toFixed(4)})`
-                          }));
-                          setToast({ title: 'Location Detected', body: `GPS coordinates captured: ${pos.lat.toFixed(4)}, ${pos.lng.toFixed(4)}`, type: 'success' });
+                          setIsLocating(true);
+                          const loc = await getRealtimeLocation();
+                          if (loc) {
+                            setCustomerLocation(prev => ({
+                              ...prev,
+                              lat: loc.lat,
+                              lng: loc.lng,
+                              address: loc.formatted,
+                              landmark: loc.landmark || prev.landmark
+                            }));
+                            setToast({
+                              title: 'Real-Time Location Captured',
+                              body: `${loc.formatted} (${loc.source === 'gps' ? 'Device GPS' : 'Geoapify IP Geolocation'})`,
+                              type: 'success'
+                            });
+                          }
                         } catch (e) {
-                          setToast({ title: 'Location Error', body: e.message || 'Please allow location permission in your browser.', type: 'error' });
+                          setToast({ title: 'Location Error', body: e.message || 'Could not fetch location', type: 'danger' });
+                        } finally {
+                          setIsLocating(false);
                         }
                       }}
                       style={{
-                        background: 'rgba(59, 130, 246, 0.15)', border: '1px solid rgba(59, 130, 246, 0.3)',
-                        borderRadius: '6px', color: '#60a5fa', fontSize: '0.72rem', padding: '0.2rem 0.6rem',
-                        cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.3rem', fontWeight: '600'
+                        background: 'rgba(59, 130, 246, 0.15)', border: '1px solid rgba(59, 130, 246, 0.35)',
+                        borderRadius: '6px', color: '#60a5fa', fontSize: '0.72rem', padding: '0.25rem 0.65rem',
+                        cursor: isLocating ? 'wait' : 'pointer', display: 'flex', alignItems: 'center', gap: '0.35rem', fontWeight: '700'
                       }}
                     >
-                      <Navigation size={12} /> Use My Live GPS
+                      <Navigation size={12} className={isLocating ? 'spin' : ''} />
+                      {isLocating ? 'Detecting Real Location...' : '📍 Detect My Live Location (Geoapify)'}
                     </button>
                   </div>
+
                   <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', background: 'var(--bg-surface-elevated)', border: '1px solid var(--border-glass)', borderRadius: 'var(--radius-md)', padding: '0.65rem 0.85rem' }}>
                     <MapPin size={16} style={{ color: '#3b82f6', flexShrink: 0 }} />
                     <input
                       type="text"
                       style={{ width: '100%', background: 'transparent', border: 'none', color: '#fff', fontSize: '0.85rem', outline: 'none' }}
-                      value={customerLocation.address}
-                      onChange={(e) => setCustomerLocation(prev => ({ ...prev, address: e.target.value }))}
-                      placeholder="Enter flat/house, building, street, city..."
+                      value={customerLocation.address || ''}
+                      onChange={async (e) => {
+                        const val = e.target.value;
+                        setCustomerLocation(prev => ({ ...prev, address: val }));
+                        if (val.trim().length >= 3) {
+                          const hits = await searchAddress(val, { limit: 5 });
+                          setAddressSuggestions(hits);
+                        } else {
+                          setAddressSuggestions([]);
+                        }
+                      }}
+                      placeholder="Search address, landmark, colony, or city via Geoapify..."
                     />
                   </div>
+
+                  {/* Geoapify Address Autocomplete Suggestions Dropdown */}
+                  {addressSuggestions.length > 0 && (
+                    <div style={{
+                      position: 'absolute',
+                      top: '100%',
+                      left: 0,
+                      right: 0,
+                      zIndex: 600,
+                      background: 'rgba(15, 23, 42, 0.98)',
+                      backdropFilter: 'blur(12px)',
+                      border: '1px solid rgba(59, 130, 246, 0.4)',
+                      borderRadius: '8px',
+                      marginTop: '4px',
+                      overflow: 'hidden',
+                      boxShadow: '0 10px 25px rgba(0,0,0,0.6)'
+                    }}>
+                      {addressSuggestions.map((sugg) => (
+                        <div
+                          key={sugg.id}
+                          onClick={() => {
+                            setCustomerLocation(prev => ({
+                              ...prev,
+                              lat: parseFloat(sugg.lat.toFixed(5)),
+                              lng: parseFloat(sugg.lng.toFixed(5)),
+                              address: sugg.label,
+                              landmark: sugg.name || prev.landmark
+                            }));
+                            setAddressSuggestions([]);
+                            setToast({
+                              title: 'Address Geocoded',
+                              body: `Pinned: ${sugg.lat.toFixed(4)}, ${sugg.lng.toFixed(4)}`,
+                              type: 'success'
+                            });
+                          }}
+                          style={{
+                            padding: '0.65rem 0.85rem',
+                            borderBottom: '1px solid rgba(255, 255, 255, 0.07)',
+                            cursor: 'pointer',
+                            fontSize: '0.82rem',
+                            color: '#fff',
+                            transition: 'background 0.15s'
+                          }}
+                          onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(59, 130, 246, 0.2)'}
+                          onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
+                        >
+                          <div style={{ fontWeight: '600', color: '#93c5fd' }}>{sugg.name}</div>
+                          <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>{sugg.label}</div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {customerLocation.lat && customerLocation.lng && (
+                    <div style={{ fontSize: '0.72rem', color: '#34d399', marginTop: '0.35rem', display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
+                      <CheckCircle size={12} /> Geoapify Pinned: {customerLocation.lat.toFixed(4)}, {customerLocation.lng.toFixed(4)}
+                    </div>
+                  )}
                 </div>
 
                 {/* Emergency Toggle */}
@@ -503,70 +617,92 @@ export const CustomerPortal = () => {
 
             {/* Right Column: Active Jobs & Live Tracker */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-              {/* Live Active Job Card */}
-              <div className="glass-card" style={{ padding: '1.75rem' }}>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1.25rem' }}>
-                  <h3 style={{ fontFamily: 'var(--font-heading)', fontSize: '1.15rem', fontWeight: '800', color: '#fff' }}>
-                    Live Active Job Tracker
-                  </h3>
-                  <span style={{ background: 'rgba(16, 185, 129, 0.15)', color: '#34d399', fontSize: '0.72rem', fontWeight: '700', padding: '0.2rem 0.6rem', borderRadius: '20px' }}>
-                    In Progress
-                  </span>
-                </div>
-
-                {/* OTP Pill */}
-                <div style={{ background: 'rgba(59, 130, 246, 0.1)', border: '1px solid rgba(59, 130, 246, 0.3)', borderRadius: 'var(--radius-md)', padding: '1rem', textAlign: 'center', marginBottom: '1.25rem' }}>
-                  <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                    Provide This Start Code to Worker on Arrival
+              {activeBooking ? (
+                /* Live Active Job Card */
+                <div className="glass-card" style={{ padding: '1.75rem' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1.25rem' }}>
+                    <h3 style={{ fontFamily: 'var(--font-heading)', fontSize: '1.15rem', fontWeight: '800', color: '#fff' }}>
+                      Live Active Job Tracker
+                    </h3>
+                    <span style={{ background: 'rgba(16, 185, 129, 0.15)', color: '#34d399', fontSize: '0.72rem', fontWeight: '700', padding: '0.2rem 0.6rem', borderRadius: '20px' }}>
+                      {activeBooking.status || 'In Progress'}
+                    </span>
                   </div>
-                  <div style={{ fontFamily: 'var(--font-mono)', fontSize: '2rem', fontWeight: '800', color: '#60a5fa', letterSpacing: '0.2em', marginTop: '0.25rem' }}>
-                    8492
-                  </div>
-                </div>
 
-                {/* Live ETA Card preview */}
-                <div style={{ background: 'rgba(16, 185, 129, 0.1)', border: '1px solid rgba(16, 185, 129, 0.25)', borderRadius: 'var(--radius-md)', padding: '0.85rem 1rem', marginBottom: '1.25rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                  <div>
-                    <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Worker Arrival ETA</div>
-                    <div style={{ fontSize: '1.1rem', fontWeight: '800', color: '#34d399', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                      <Clock size={16} /> ~{etaMinutes} Mins ({distanceKm} km away)
+                  {/* OTP Pill */}
+                  <div style={{ background: 'rgba(59, 130, 246, 0.1)', border: '1px solid rgba(59, 130, 246, 0.3)', borderRadius: 'var(--radius-md)', padding: '1rem', textAlign: 'center', marginBottom: '1.25rem' }}>
+                    <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                      Provide This Start Code to Worker on Arrival
+                    </div>
+                    <div style={{ fontFamily: 'var(--font-mono)', fontSize: '2rem', fontWeight: '800', color: '#60a5fa', letterSpacing: '0.2em', marginTop: '0.25rem' }}>
+                      {activeBooking.startOtp || '8492'}
                     </div>
                   </div>
-                  <span style={{ fontSize: '0.75rem', background: '#064e3b', color: '#6ee7b7', padding: '0.2rem 0.6rem', borderRadius: '12px', fontWeight: '700' }}>
-                    {trackingStatus}
-                  </span>
-                </div>
 
-                {/* Primary Button to Switch to Location Tab */}
-                <button
-                  onClick={() => setActiveTab('location')}
-                  className="btn btn-primary"
-                  style={{ width: '100%', marginBottom: '1.25rem', padding: '0.75rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem', background: 'linear-gradient(135deg, #059669, #047857)', fontWeight: '700' }}
-                >
-                  <MapPin size={16} /> Track Worker Live Location on Map <ArrowRight size={15} />
-                </button>
+                  {/* Live ETA Card preview */}
+                  {etaMinutes !== null && (
+                    <div style={{ background: 'rgba(16, 185, 129, 0.1)', border: '1px solid rgba(16, 185, 129, 0.25)', borderRadius: 'var(--radius-md)', padding: '0.85rem 1rem', marginBottom: '1.25rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                      <div>
+                        <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Worker Arrival ETA</div>
+                        <div style={{ fontSize: '1.1rem', fontWeight: '800', color: '#34d399', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                          <Clock size={16} /> ~{etaMinutes} Mins ({distanceKm} km away)
+                        </div>
+                      </div>
+                      <span style={{ fontSize: '0.75rem', background: '#064e3b', color: '#6ee7b7', padding: '0.2rem 0.6rem', borderRadius: '12px', fontWeight: '700' }}>
+                        {trackingStatus || 'En Route'}
+                      </span>
+                    </div>
+                  )}
 
-                {/* Timer */}
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.85rem 1rem', background: 'var(--bg-surface-elevated)', borderRadius: 'var(--radius-md)', marginBottom: '1.25rem' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--text-muted)', fontSize: '0.85rem' }}>
-                    <Clock size={16} /> Elapsed Work Duration
+                  {/* Primary Button to Switch to Location Tab */}
+                  <button
+                    onClick={() => setActiveTab('location')}
+                    className="btn btn-primary"
+                    style={{ width: '100%', marginBottom: '1.25rem', padding: '0.75rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem', background: 'linear-gradient(135deg, #059669, #047857)', fontWeight: '700' }}
+                  >
+                    <MapPin size={16} /> Track Worker Live Location on Map <ArrowRight size={15} />
+                  </button>
+
+                  {/* Timer */}
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.85rem 1rem', background: 'var(--bg-surface-elevated)', borderRadius: 'var(--radius-md)', marginBottom: '1.25rem' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--text-muted)', fontSize: '0.85rem' }}>
+                      <Clock size={16} /> Elapsed Work Duration
+                    </div>
+                    <div style={{ fontFamily: 'var(--font-mono)', fontSize: '1.2rem', fontWeight: '700', color: '#34d399' }}>
+                      {formatTimer(timerSeconds)}
+                    </div>
                   </div>
-                  <div style={{ fontFamily: 'var(--font-mono)', fontSize: '1.2rem', fontWeight: '700', color: '#34d399' }}>
-                    {formatTimer(timerSeconds)}
+
+                  {/* Assigned Worker Info */}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', padding: '0.75rem 0', borderTop: '1px solid var(--border-glass)' }}>
+                    <div style={{ width: '40px', height: '40px', borderRadius: '50%', background: '#059669', display: 'grid', placeItems: 'center', color: 'white', fontWeight: '700' }}>
+                      {(activeBooking.labourName || 'W')[0]}
+                    </div>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontWeight: '700', color: '#fff', fontSize: '0.9rem' }}>
+                        {activeBooking.labourName || 'Assigned Professional'} ({activeBooking.serviceName || 'Service Pro'})
+                      </div>
+                      <div style={{ fontSize: '0.75rem', color: '#34d399' }}>★ 4.9 • Verified Background • Escrow Protected</div>
+                    </div>
                   </div>
                 </div>
-
-                {/* Assigned Worker Info */}
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', padding: '0.75rem 0', borderTop: '1px solid var(--border-glass)' }}>
-                  <div style={{ width: '40px', height: '40px', borderRadius: '50%', background: '#059669', display: 'grid', placeItems: 'center', color: 'white', fontWeight: '700' }}>
-                    R
+              ) : (
+                /* No Active Job Card */
+                <div className="glass-card" style={{ padding: '2rem 1.5rem', textAlign: 'center' }}>
+                  <div style={{ width: '56px', height: '56px', borderRadius: '50%', background: 'rgba(59, 130, 246, 0.12)', border: '1.5px solid #3b82f6', display: 'grid', placeItems: 'center', margin: '0 auto 1.25rem', fontSize: '1.5rem' }}>
+                    📍
                   </div>
-                  <div style={{ flex: 1 }}>
-                    <div style={{ fontWeight: '700', color: '#fff', fontSize: '0.9rem' }}>Ramesh Kumar (Certified Electrician)</div>
-                    <div style={{ fontSize: '0.75rem', color: '#34d399' }}>★ 4.9 • 142 Jobs Completed • Police Verified</div>
+                  <h3 style={{ color: '#fff', fontSize: '1.15rem', fontWeight: '800', marginBottom: '0.4rem' }}>
+                    Welcome to LabourLink, {user.name || 'Shivam'}!
+                  </h3>
+                  <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', maxWidth: '420px', margin: '0 auto 1.5rem', lineHeight: '1.5' }}>
+                    You currently have no active service requests. Select a service on the left to get instant quotes, lock payment safely in Escrow, and dispatch a verified professional to your address.
+                  </p>
+                  <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', background: 'rgba(16, 185, 129, 0.1)', border: '1px solid rgba(16, 185, 129, 0.25)', borderRadius: '20px', padding: '0.4rem 1rem', fontSize: '0.8rem', color: '#34d399', fontWeight: '600' }}>
+                    <CheckCircle size={15} /> 100% Escrow Protection • Live GPS Telemetry
                   </div>
                 </div>
-              </div>
+              )}
             </div>
           </div>
         )}
@@ -599,174 +735,238 @@ export const CustomerPortal = () => {
               </div>
             )}
 
-            {/* Top ETA & Live Status Banner */}
-            <div className="glass-card" style={{ padding: '1.5rem', background: 'linear-gradient(135deg, rgba(17, 24, 39, 0.95), rgba(30, 58, 138, 0.35))', border: '1px solid rgba(59, 130, 246, 0.3)' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
-                <div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', marginBottom: '0.35rem' }}>
-                    <span style={{ width: '10px', height: '10px', borderRadius: '50%', background: '#10b981', boxShadow: '0 0 10px #10b981' }}></span>
-                    <span style={{ fontSize: '0.78rem', fontWeight: '700', textTransform: 'uppercase', color: '#60a5fa', letterSpacing: '0.05em' }}>
-                      Real-Time GPS Dispatch Tracking
+            {activeBooking && labourLocation ? (
+              <>
+                {/* Top ETA & Live Status Banner */}
+                <div className="glass-card" style={{ padding: '1.5rem', background: 'linear-gradient(135deg, rgba(17, 24, 39, 0.95), rgba(30, 58, 138, 0.35))', border: '1px solid rgba(59, 130, 246, 0.3)' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
+                    <div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', marginBottom: '0.35rem' }}>
+                        <span style={{ width: '10px', height: '10px', borderRadius: '50%', background: '#10b981', boxShadow: '0 0 10px #10b981' }}></span>
+                        <span style={{ fontSize: '0.78rem', fontWeight: '700', textTransform: 'uppercase', color: '#60a5fa', letterSpacing: '0.05em' }}>
+                          Real-Time GPS Dispatch Tracking
+                        </span>
+                      </div>
+                      <h2 style={{ fontFamily: 'var(--font-heading)', fontSize: '1.6rem', fontWeight: '800', color: '#fff' }}>
+                        Labour is <span style={{ color: '#34d399' }}>~{etaMinutes || 10} Minutes Away</span>
+                      </h2>
+                      <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>
+                        {trackingStatus || 'En Route'} • Distance remaining: <strong style={{ color: '#fff' }}>{distanceKm || 1.2} km</strong>
+                      </p>
+                    </div>
+
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                      <button
+                        onClick={handleSimulateMovement}
+                        className="btn btn-glass"
+                        style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.82rem', padding: '0.6rem 1rem' }}
+                        title="Simulate worker riding closer"
+                      >
+                        <RefreshCw size={14} /> Simulate Moving Closer
+                      </button>
+                      <a
+                        href={`https://www.google.com/maps/dir/?api=1&origin=${labourLocation.lat},${labourLocation.lng}&destination=${customerLocation.lat},${customerLocation.lng}`}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="btn btn-primary"
+                        style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.82rem', padding: '0.6rem 1rem' }}
+                      >
+                        <ExternalLink size={14} /> Open in Google Maps
+                      </a>
+                    </div>
+                  </div>
+
+                  {/* Progress Milestones Bar */}
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '0.75rem', marginTop: '1.25rem', paddingTop: '1.25rem', borderTop: '1px solid var(--border-glass)' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                      <div style={{ width: '24px', height: '24px', borderRadius: '50%', background: '#10b981', color: 'white', display: 'grid', placeItems: 'center', fontSize: '0.75rem', fontWeight: '700' }}>✓</div>
+                      <span style={{ fontSize: '0.78rem', color: '#fff', fontWeight: '600' }}>Service Booked</span>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                      <div style={{ width: '24px', height: '24px', borderRadius: '50%', background: '#10b981', color: 'white', display: 'grid', placeItems: 'center', fontSize: '0.75rem', fontWeight: '700' }}>✓</div>
+                      <span style={{ fontSize: '0.78rem', color: '#fff', fontWeight: '600' }}>Worker Assigned</span>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                      <div style={{ width: '24px', height: '24px', borderRadius: '50%', background: etaMinutes > 0 ? '#3b82f6' : '#10b981', color: 'white', display: 'grid', placeItems: 'center', fontSize: '0.75rem', fontWeight: '700' }}>
+                        {etaMinutes > 0 ? '3' : '✓'}
+                      </div>
+                      <span style={{ fontSize: '0.78rem', color: etaMinutes > 0 ? '#60a5fa' : '#fff', fontWeight: '700' }}>
+                        {etaMinutes > 0 ? 'On The Way (Live)' : 'Arrived on Site'}
+                      </span>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                      <div style={{ width: '24px', height: '24px', borderRadius: '50%', background: 'var(--border-glass)', color: 'var(--text-muted)', display: 'grid', placeItems: 'center', fontSize: '0.75rem', fontWeight: '700' }}>4</div>
+                      <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>Work In Progress</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Map & Worker Tracking Details Grid */}
+                <div style={{ display: 'grid', gridTemplateColumns: '8fr 4fr', gap: '1.5rem' }}>
+                  {/* Interactive Live Map */}
+                  <div className="glass-card" style={{ padding: '1.25rem' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontWeight: '700', color: '#fff', fontSize: '0.95rem' }}>
+                        <Compass size={17} style={{ color: '#34d399' }} /> Live Route &amp; Destination Map
+                      </div>
+                      <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                        Powered by Geoapify &amp; Live Telemetry
+                      </span>
+                    </div>
+
+                    <LiveLocationMap
+                      customerLoc={customerLocation}
+                      labourLoc={labourLocation}
+                      showRoute={true}
+                      height="460px"
+                    />
+
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '1rem', paddingTop: '0.75rem', borderTop: '1px solid var(--border-glass)', fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                        <MapPin size={14} style={{ color: '#3b82f6' }} />
+                        <span>Destination: <strong>{customerLocation.address}</strong></span>
+                      </div>
+                      <span style={{ color: '#34d399', fontWeight: '600' }}>GPS Coordinates: {customerLocation.lat?.toFixed?.(4)}, {customerLocation.lng?.toFixed?.(4)}</span>
+                    </div>
+                  </div>
+
+                  {/* Right Side: Assigned Labour Profile & Security Info */}
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+                    <div className="glass-card" style={{ padding: '1.5rem' }}>
+                      <div style={{ fontSize: '0.72rem', textTransform: 'uppercase', color: 'var(--text-muted)', fontWeight: '700', marginBottom: '0.75rem' }}>
+                        Assigned Service Professional
+                      </div>
+
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.85rem', marginBottom: '1.25rem' }}>
+                        <div style={{ width: '48px', height: '48px', borderRadius: '50%', background: 'linear-gradient(135deg, #059669, #10b981)', display: 'grid', placeItems: 'center', color: 'white', fontWeight: '800', fontSize: '1.15rem' }}>
+                          {(activeBooking.labourName || 'W')[0]}
+                        </div>
+                        <div>
+                          <h4 style={{ color: '#fff', fontSize: '1rem', fontWeight: '800' }}>{activeBooking.labourName || 'Assigned Worker'}</h4>
+                          <div style={{ color: '#34d399', fontSize: '0.8rem', fontWeight: '600' }}>{activeBooking.serviceName || 'Certified Pro'} • ★ 4.9 Verified</div>
+                          <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: '0.15rem' }}>Dispatched via LabourLink Smart Dispatch</div>
+                        </div>
+                      </div>
+
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', marginBottom: '1.25rem' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.78rem', color: '#34d399' }}>
+                          <CheckCircle size={14} /> Police Character Clearance Verified
+                        </div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.78rem', color: '#34d399' }}>
+                          <ShieldCheck size={14} /> Aadhaar &amp; Skill Competency Certified
+                        </div>
+                      </div>
+
+                      <a
+                        href={`tel:${activeBooking.labourPhone || '+919876500001'}`}
+                        className="btn btn-glass"
+                        style={{ width: '100%', padding: '0.75rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem', fontSize: '0.88rem', fontWeight: '700' }}
+                      >
+                        <Phone size={15} /> Call {activeBooking.labourName || 'Worker'}
+                      </a>
+                    </div>
+
+                    {/* Start Code OTP Card */}
+                    <div className="glass-card" style={{ padding: '1.5rem', background: 'rgba(59, 130, 246, 0.08)', border: '1px solid rgba(59, 130, 246, 0.3)' }}>
+                      <div style={{ fontSize: '0.72rem', textTransform: 'uppercase', color: '#93c5fd', fontWeight: '700', marginBottom: '0.35rem' }}>
+                        Work Start Verification Code
+                      </div>
+                      <p style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginBottom: '0.75rem' }}>
+                        Share this 4-digit code with the worker only after they physically reach your location:
+                      </p>
+                      <div style={{ fontFamily: 'var(--font-mono)', fontSize: '2.2rem', fontWeight: '800', color: '#60a5fa', letterSpacing: '0.25em', textAlign: 'center', background: 'var(--bg-surface-elevated)', borderRadius: 'var(--radius-md)', padding: '0.5rem' }}>
+                        {activeBooking.startOtp || '8492'}
+                      </div>
+                    </div>
+
+                    {/* Gate & Entry Instructions Card */}
+                    <div className="glass-card" style={{ padding: '1.5rem' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.6rem' }}>
+                        <div style={{ fontSize: '0.72rem', textTransform: 'uppercase', color: 'var(--text-muted)', fontWeight: '700' }}>
+                          Arrival Notes for Worker
+                        </div>
+                        <span style={{ fontSize: '0.72rem', color: '#60a5fa' }}>Saved</span>
+                      </div>
+                      <textarea
+                        style={{ width: '100%', padding: '0.7rem', background: 'var(--bg-surface-elevated)', border: '1px solid var(--border-glass)', borderRadius: 'var(--radius-md)', color: '#fff', fontSize: '0.82rem', resize: 'none', minHeight: '60px', outline: 'none' }}
+                        value={gateNotes}
+                        onChange={(e) => setGateNotes(e.target.value)}
+                        placeholder="e.g. Tower B, Flat 402, Ring bell twice..."
+                      />
+                    </div>
+                  </div>
+                </div>
+              </>
+            ) : (
+              /* No Active Booking: Show Only Customer's Real-Time Location Map */
+              <div style={{ display: 'grid', gridTemplateColumns: '8fr 4fr', gap: '1.5rem' }}>
+                <div className="glass-card" style={{ padding: '1.25rem' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontWeight: '700', color: '#fff', fontSize: '0.95rem' }}>
+                      <Compass size={17} style={{ color: '#3b82f6' }} /> Your Real-Time Verified Location
+                    </div>
+                    <span style={{ fontSize: '0.75rem', color: '#34d399', background: 'rgba(16, 185, 129, 0.1)', border: '1px solid rgba(16, 185, 129, 0.25)', padding: '0.2rem 0.6rem', borderRadius: '12px', fontWeight: '700' }}>
+                      Geoapify Calibrated
                     </span>
                   </div>
-                  <h2 style={{ fontFamily: 'var(--font-heading)', fontSize: '1.6rem', fontWeight: '800', color: '#fff' }}>
-                    Labour is <span style={{ color: '#34d399' }}>~{etaMinutes} Minutes Away</span>
-                  </h2>
-                  <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>
-                    {trackingStatus} • Distance remaining: <strong style={{ color: '#fff' }}>{distanceKm} km</strong>
-                  </p>
-                </div>
 
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                  <button
-                    onClick={handleSimulateMovement}
-                    className="btn btn-glass"
-                    style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.82rem', padding: '0.6rem 1rem' }}
-                    title="Simulate worker riding closer"
-                  >
-                    <RefreshCw size={14} /> Simulate Moving Closer
-                  </button>
-                  <a
-                    href={`https://www.google.com/maps/dir/?api=1&origin=${labourLocation.lat},${labourLocation.lng}&destination=${customerLocation.lat},${customerLocation.lng}`}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="btn btn-primary"
-                    style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.82rem', padding: '0.6rem 1rem' }}
-                  >
-                    <ExternalLink size={14} /> Open in Google Maps
-                  </a>
-                </div>
-              </div>
-
-              {/* Progress Milestones Bar */}
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '0.75rem', marginTop: '1.25rem', paddingTop: '1.25rem', borderTop: '1px solid var(--border-glass)' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                  <div style={{ width: '24px', height: '24px', borderRadius: '50%', background: '#10b981', color: 'white', display: 'grid', placeItems: 'center', fontSize: '0.75rem', fontWeight: '700' }}>✓</div>
-                  <span style={{ fontSize: '0.78rem', color: '#fff', fontWeight: '600' }}>Service Booked</span>
-                </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                  <div style={{ width: '24px', height: '24px', borderRadius: '50%', background: '#10b981', color: 'white', display: 'grid', placeItems: 'center', fontSize: '0.75rem', fontWeight: '700' }}>✓</div>
-                  <span style={{ fontSize: '0.78rem', color: '#fff', fontWeight: '600' }}>Worker Assigned</span>
-                </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                  <div style={{ width: '24px', height: '24px', borderRadius: '50%', background: etaMinutes > 0 ? '#3b82f6' : '#10b981', color: 'white', display: 'grid', placeItems: 'center', fontSize: '0.75rem', fontWeight: '700' }}>
-                    {etaMinutes > 0 ? '3' : '✓'}
-                  </div>
-                  <span style={{ fontSize: '0.78rem', color: etaMinutes > 0 ? '#60a5fa' : '#fff', fontWeight: '700' }}>
-                    {etaMinutes > 0 ? 'On The Way (Live)' : 'Arrived on Site'}
-                  </span>
-                </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                  <div style={{ width: '24px', height: '24px', borderRadius: '50%', background: 'var(--border-glass)', color: 'var(--text-muted)', display: 'grid', placeItems: 'center', fontSize: '0.75rem', fontWeight: '700' }}>4</div>
-                  <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>Work In Progress</span>
-                </div>
-              </div>
-            </div>
-
-            {/* Map & Worker Tracking Details Grid */}
-            <div style={{ display: 'grid', gridTemplateColumns: '8fr 4fr', gap: '1.5rem' }}>
-
-              {/* Interactive Live Map */}
-              <div className="glass-card" style={{ padding: '1.25rem' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontWeight: '700', color: '#fff', fontSize: '0.95rem' }}>
-                    <Compass size={17} style={{ color: '#34d399' }} /> Live Route &amp; Destination Map
-                  </div>
-                  <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-                    Auto-updates with worker GPS telemetry
-                  </span>
-                </div>
-
-                {/* Leaflet Map Component */}
-                <LiveLocationMap
-                  customerLoc={customerLocation}
-                  labourLoc={labourLocation}
-                  showRoute={true}
-                  height="460px"
-                />
-
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '1rem', paddingTop: '0.75rem', borderTop: '1px solid var(--border-glass)', fontSize: '0.8rem', color: 'var(--text-muted)' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                    <MapPin size={14} style={{ color: '#3b82f6' }} />
-                    <span>Destination: <strong>{customerLocation.address}</strong></span>
-                  </div>
-                  <span style={{ color: '#34d399', fontWeight: '600' }}>GPS Coordinates: {customerLocation.lat}, {customerLocation.lng}</span>
-                </div>
-              </div>
-
-              {/* Right Side: Assigned Labour Profile & Security Info */}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
-
-                {/* Worker Profile Card */}
-                <div className="glass-card" style={{ padding: '1.5rem' }}>
-                  <div style={{ fontSize: '0.72rem', textTransform: 'uppercase', color: 'var(--text-muted)', fontWeight: '700', marginBottom: '0.75rem' }}>
-                    Assigned Service Professional
-                  </div>
-
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.85rem', marginBottom: '1.25rem' }}>
-                    <div style={{ width: '48px', height: '48px', borderRadius: '50%', background: 'linear-gradient(135deg, #059669, #10b981)', display: 'grid', placeItems: 'center', color: 'white', fontWeight: '800', fontSize: '1.15rem' }}>
-                      R
-                    </div>
-                    <div>
-                      <h4 style={{ color: '#fff', fontSize: '1rem', fontWeight: '800' }}>Ramesh Kumar</h4>
-                      <div style={{ color: '#34d399', fontSize: '0.8rem', fontWeight: '600' }}>Certified Electrician • ★ 4.9 (142 reviews)</div>
-                      <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: '0.15rem' }}>Hero Splendor Plus (MH-02-EE-8891)</div>
-                    </div>
-                  </div>
-
-                  {/* Safety Badges */}
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', marginBottom: '1.25rem' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.78rem', color: '#34d399' }}>
-                      <CheckCircle size={14} /> Police Character Clearance Verified
-                    </div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.78rem', color: '#34d399' }}>
-                      <ShieldCheck size={14} /> Aadhaar &amp; Skill Competency Certified
-                    </div>
-                  </div>
-
-                  <a
-                    href="tel:+919876500001"
-                    className="btn btn-glass"
-                    style={{ width: '100%', padding: '0.75rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem', fontSize: '0.88rem', fontWeight: '700' }}
-                  >
-                    <Phone size={15} /> Call Ramesh (+91 98765 00001)
-                  </a>
-                </div>
-
-                {/* Start Code OTP Card */}
-                <div className="glass-card" style={{ padding: '1.5rem', background: 'rgba(59, 130, 246, 0.08)', border: '1px solid rgba(59, 130, 246, 0.3)' }}>
-                  <div style={{ fontSize: '0.72rem', textTransform: 'uppercase', color: '#93c5fd', fontWeight: '700', marginBottom: '0.35rem' }}>
-                    Work Start Verification Code
-                  </div>
-                  <p style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginBottom: '0.75rem' }}>
-                    Share this 4-digit code with the worker only after they physically reach your location:
-                  </p>
-                  <div style={{ fontFamily: 'var(--font-mono)', fontSize: '2.2rem', fontWeight: '800', color: '#60a5fa', letterSpacing: '0.25em', textAlign: 'center', background: 'var(--bg-surface-elevated)', borderRadius: 'var(--radius-md)', padding: '0.5rem' }}>
-                    8492
-                  </div>
-                </div>
-
-                {/* Gate & Entry Instructions Card */}
-                <div className="glass-card" style={{ padding: '1.5rem' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.6rem' }}>
-                    <div style={{ fontSize: '0.72rem', textTransform: 'uppercase', color: 'var(--text-muted)', fontWeight: '700' }}>
-                      Arrival Notes for Worker
-                    </div>
-                    <span style={{ fontSize: '0.72rem', color: '#60a5fa' }}>Saved</span>
-                  </div>
-                  <textarea
-                    style={{ width: '100%', padding: '0.7rem', background: 'var(--bg-surface-elevated)', border: '1px solid var(--border-glass)', borderRadius: 'var(--radius-md)', color: '#fff', fontSize: '0.82rem', resize: 'none', minHeight: '60px', outline: 'none' }}
-                    value={gateNotes}
-                    onChange={(e) => setGateNotes(e.target.value)}
-                    placeholder="e.g. Tower B, Flat 402, Ring bell twice..."
+                  <LiveLocationMap
+                    customerLoc={customerLocation}
+                    labourLoc={null}
+                    showRoute={false}
+                    height="460px"
                   />
-                  <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: '0.35rem' }}>
-                    Worker sees these instructions on their navigation cockpit.
+
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '1rem', paddingTop: '0.75rem', borderTop: '1px solid var(--border-glass)', fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                      <MapPin size={14} style={{ color: '#3b82f6' }} />
+                      <span>Address: <strong>{customerLocation.address || 'Real-time location detected'}</strong></span>
+                    </div>
+                    <span style={{ color: '#60a5fa', fontWeight: '600' }}>
+                      GPS: {customerLocation.lat ? `${customerLocation.lat.toFixed(4)}, ${customerLocation.lng.toFixed(4)}` : 'Calibrating...'}
+                    </span>
                   </div>
                 </div>
 
+                {/* Right Column: Dispatch Status & One-Click Booking CTA */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+                  <div className="glass-card" style={{ padding: '1.5rem' }}>
+                    <div style={{ fontSize: '0.72rem', textTransform: 'uppercase', color: 'var(--text-muted)', fontWeight: '700', marginBottom: '0.75rem' }}>
+                      Dispatch Radar Status
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.85rem', marginBottom: '1rem' }}>
+                      <div style={{ width: '46px', height: '46px', borderRadius: '50%', background: 'rgba(59, 130, 246, 0.15)', border: '1.5px solid #3b82f6', display: 'grid', placeItems: 'center', color: '#60a5fa', fontSize: '1.2rem' }}>
+                        🏠
+                      </div>
+                      <div>
+                        <h4 style={{ color: '#fff', fontSize: '1rem', fontWeight: '800' }}>No Worker Dispatched</h4>
+                        <div style={{ color: 'var(--text-muted)', fontSize: '0.8rem' }}>Standby for booking request</div>
+                      </div>
+                    </div>
+                    <p style={{ fontSize: '0.82rem', color: 'var(--text-muted)', lineHeight: '1.5', marginBottom: '1.25rem' }}>
+                      Your real-time coordinates have been captured with high precision. When you book a service, nearby certified workers will be matched, and live turn-by-turn road navigation will activate right here.
+                    </p>
+
+                    <button
+                      onClick={() => setActiveTab('book')}
+                      className="btn btn-primary"
+                      style={{ width: '100%', padding: '0.8rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem', fontWeight: '700', fontSize: '0.9rem' }}
+                    >
+                      Book a Service Now <ArrowRight size={16} />
+                    </button>
+                  </div>
+
+                  <div className="glass-card" style={{ padding: '1.25rem' }}>
+                    <div style={{ fontSize: '0.72rem', textTransform: 'uppercase', color: '#34d399', fontWeight: '700', marginBottom: '0.6rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                      <ShieldCheck size={16} /> Escrow Protection Guarantee
+                    </div>
+                    <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', lineHeight: '1.5' }}>
+                      Funds remain securely protected in Escrow and are only transferred to the assigned worker after your 4-digit start code verification and final inspection.
+                    </div>
+                  </div>
+                </div>
               </div>
-            </div>
+            )}
           </div>
         )}
 

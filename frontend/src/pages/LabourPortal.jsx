@@ -10,6 +10,7 @@ import { Toast } from '../components/Toast';
 import { LiveLocationMap } from '../components/LiveLocationMap';
 import { useGeolocation } from '../hooks/useGeolocation';
 import { LocationPermissionBanner } from '../components/LocationPermissionBanner';
+import { getRealtimeLocation, getRoute } from '../services/geoapifyService';
 
 export const LabourPortal = () => {
   const { user, logout } = useAuth();
@@ -44,8 +45,8 @@ export const LabourPortal = () => {
     lat: 19.0688,
     lng: 72.8340,
     address: 'Linking Road Junction, Khar West, Mumbai',
-    name: user.name || 'Ramesh Kumar',
-    trade: user.category || 'Certified Electrician'
+    name: user.name || 'Service Professional',
+    trade: user.category || 'Verified Professional'
   });
 
   const [navDistanceKm, setNavDistanceKm] = useState(1.4);
@@ -165,6 +166,34 @@ export const LabourPortal = () => {
       body: 'Customer notified that you have reached their building. Ask for their 4-digit Start Code.',
       type: 'success'
     });
+  };
+
+  const handleDetectWorkerLocation = async () => {
+    try {
+      const loc = await getRealtimeLocation();
+      if (loc) {
+        setWorkerLocation(prev => ({
+          ...prev,
+          lat: loc.lat,
+          lng: loc.lng,
+          address: loc.formatted
+        }));
+        if (customerDestination?.lat && customerDestination?.lng) {
+          const route = await getRoute({ lat: loc.lat, lng: loc.lng }, customerDestination);
+          if (route) {
+            setNavDistanceKm(route.distanceKm);
+            setNavEtaMinutes(route.etaMinutes);
+          }
+        }
+        setToast({
+          title: 'Worker Location Calibrated',
+          body: `${loc.formatted} (${loc.source.toUpperCase()})`,
+          type: 'success'
+        });
+      }
+    } catch (err) {
+      setToast({ title: 'Location Error', body: err.message, type: 'danger' });
+    }
   };
 
   const handleSimulateGPSMove = () => {
@@ -496,6 +525,15 @@ export const LabourPortal = () => {
                 </div>
 
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
+                  <button
+                    onClick={handleDetectWorkerLocation}
+                    className="btn btn-glass"
+                    style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.82rem', padding: '0.6rem 1rem' }}
+                    title="Calibrate real-time location via Geoapify & GPS"
+                  >
+                    <Navigation size={14} /> Detect Live Location (Geoapify)
+                  </button>
+
                   {gps.permissionState !== 'granted' ? (
                     <button
                       onClick={gps.startWatching}

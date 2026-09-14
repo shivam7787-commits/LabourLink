@@ -1,9 +1,11 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
+import { getRoute, getGeoapifyTileUrl } from '../services/geoapifyService';
 
 /**
  * Reusable High-Fidelity Dark Theme Leaflet Map for LabourLink
+ * Powered by Geoapify (Tiles, Geocoding, Real Road Routing)
  * 
  * Props:
  * - customerLoc: { lat, lng, address, name, landmark }
@@ -21,6 +23,8 @@ export const LiveLocationMap = ({
 }) => {
   const mapContainerRef = useRef(null);
   const mapInstanceRef = useRef(null);
+  const routeLayersRef = useRef([]);
+  const [routeMeta, setRouteMeta] = useState(null);
 
   useEffect(() => {
     if (!mapContainerRef.current) return;
@@ -48,11 +52,20 @@ export const LiveLocationMap = ({
 
     mapInstanceRef.current = map;
 
-    // Dark Matter tile layer for high-contrast dark mode
-    L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/dark_all/{z}/{x}/{y}{r}.png', {
-      maxZoom: 19,
-      subdomains: 'abcd'
-    }).addTo(map);
+    // Geoapify Dark Matter tile layer (with CartoDB Dark Matter as reliable fallback)
+    const primaryTiles = L.tileLayer(getGeoapifyTileUrl('dark-matter-dark-grey'), {
+      maxZoom: 19
+    });
+    
+    primaryTiles.on('tileerror', () => {
+      // If Geoapify tile errors, add CartoDB Dark Matter
+      L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/dark_all/{z}/{x}/{y}{r}.png', {
+        maxZoom: 19,
+        subdomains: 'abcd'
+      }).addTo(map);
+    });
+
+    primaryTiles.addTo(map);
 
     const boundsGroup = [];
 
@@ -149,32 +162,52 @@ export const LiveLocationMap = ({
       boundsGroup.push([labourLoc.lat, labourLoc.lng]);
     }
 
-    // 3. ROUTE POLYLINE (LABOUR -> CUSTOMER)
+    // 3. GEOAPIFY TURN-BY-TURN ROAD ROUTE (LABOUR -> CUSTOMER)
     if (showRoute && customerLoc?.lat && labourLoc?.lat) {
+      let isCancelled = false;
+
+      // Draw initial smooth line while Geoapify computes road vectors
       const midLat = (customerLoc.lat + labourLoc.lat) / 2 + 0.0012;
       const midLng = (customerLoc.lng + labourLoc.lng) / 2 - 0.0015;
-
-      const pathCoords = [
+      const initialPath = [
         [labourLoc.lat, labourLoc.lng],
         [midLat, midLng],
         [customerLoc.lat, customerLoc.lng]
       ];
 
-      L.polyline(pathCoords, {
+      const glowLine = L.polyline(initialPath, {
         color: '#10b981',
         weight: 6,
-        opacity: 0.35,
+        opacity: 0.3,
         lineCap: 'round',
         lineJoin: 'round'
       }).addTo(map);
 
-      L.polyline(pathCoords, {
+      const dashLine = L.polyline(initialPath, {
         color: '#34d399',
         weight: 3.5,
         opacity: 0.95,
         dashArray: '8, 8',
         lineCap: 'round'
       }).addTo(map);
+
+      routeLayersRef.current = [glowLine, dashLine];
+
+      // Query Geoapify Routing API for real street navigation coordinates
+      getRoute(labourLoc, customerLoc).then((route) => {
+        if (isCancelled || !route || !mapInstanceRef.current) return;
+        if (Array.isArray(route.coordinates) && route.coordinates.length > 1) {
+          glowLine.setLatLngs(route.coordinates);
+          dashLine.setLatLngs(route.coordinates);
+          setRouteMeta({
+            distanceKm: route.distanceKm,
+            etaMinutes: route.etaMinutes,
+            isRoad: true
+          });
+        }
+      }).catch((err) => {
+        console.warn('[LiveLocationMap] Geoapify route fallback used:', err);
+      });
     }
 
     // 4. B2B SITE & BATCH MARKERS
@@ -330,6 +363,30 @@ export const LiveLocationMap = ({
   return (
     <div style={{ position: 'relative', width: '100%', height, borderRadius: 'var(--radius-lg)', overflow: 'hidden', border: '1px solid var(--border-glass)', boxShadow: '0 8px 30px rgba(0,0,0,0.5)' }}>
       <div ref={mapContainerRef} style={{ width: '100%', height: '100%', background: '#0a0e17' }} />
+
+      {routeMeta && (
+        <div style={{
+          position: 'absolute',
+          top: '12px',
+          left: '12px',
+          zIndex: 500,
+          background: 'rgba(15, 23, 42, 0.92)',
+          backdropFilter: 'blur(10px)',
+          border: '1px solid rgba(16, 185, 129, 0.45)',
+          borderRadius: '8px',
+          padding: '6px 12px',
+          fontSize: '0.78rem',
+          fontWeight: '700',
+          color: '#34d399',
+          boxShadow: '0 4px 16px rgba(0,0,0,0.6)',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '7px'
+        }}>
+          <span>🛣️</span>
+          <span>Geoapify Road Route: {routeMeta.distanceKm} km • ~{routeMeta.etaMinutes} min drive</span>
+        </div>
+      )}
 
       <div style={{ position: 'absolute', top: '12px', right: '12px', zIndex: 500, display: 'flex', flexDirection: 'column', gap: '6px' }}>
         <button
